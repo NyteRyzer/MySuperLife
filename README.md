@@ -48,3 +48,13 @@ js/ui.js          rendering, panels and popups
 ```
 
 New origins, powers or events can be added by appending entries to the arrays in `data.js` and `events.js`.
+
+## Stable build
+
+`MySuperLife.html` is the whole game bundled into one file. Download it and open it in any browser, on a phone or a computer, even offline.
+
+After changing anything in `js/` or `css/`, rebuild it with:
+
+```
+python3 build/build.py
+```
