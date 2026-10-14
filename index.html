@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#14112b">
+  <title>MySuperLife</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div id="avatar">👶</div>
+      <div class="who">
+        <div id="name"></div>
+        <div id="sub"></div>
+      </div>
+      <div class="right">
+        <div id="money">$0</div>
+        <button id="menu-btn" aria-label="Menu">☰</button>
+      </div>
+    </header>
+
+    <main id="log"></main>
+
+    <section id="stats"></section>
+
+    <nav id="nav">
+      <button data-sheet="career"><span>💼</span>Career</button>
+      <button data-sheet="people"><span>❤️</span>People</button>
+      <button id="age-btn"><span>＋</span>Age</button>
+      <button data-sheet="activities"><span>🎯</span>Activities</button>
+      <button data-sheet="powers" id="nav-powers"><span>⚡</span>Powers</button>
+    </nav>
+
+    <div id="sheet" hidden>
+      <div class="sheet-head">
+        <h3 id="sheet-title"></h3>
+        <button id="sheet-close" aria-label="Close">✕</button>
+      </div>
+      <div id="sheet-body"></div>
+    </div>
+  </div>
+
+  <div id="modal" hidden></div>
+  <div id="start" class="screen" hidden></div>
+  <div id="death" class="screen" hidden></div>
+  <div id="toast"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/super.js"></script>
+  <script src="js/events.js"></script>
+  <script src="js/actions.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
