@@ -90,7 +90,10 @@ function newLife(opts = {}) {
     job: null, retiredJob: false, pension: 0,
     people: [], nextId: 0, used: {}, log: [], flags: {},
     originAge: rand(5, 17), super: null, prison: 0, cause: null,
+    pets: [], social: { followers: 0 }, invest: {}, conditions: [], achievements: [], generation: 1,
   };
+  G.goals = pickGoals();
+  initCity();
   const wealth = pick([0.5, 1, 1, 1, 2, 4]);
   G.familyWealth = wealth;
   const mom = addPerson({ ...randomPerson('f', 22, 40, 'Parent', last), bond: rand(60, 100) });
@@ -121,6 +124,10 @@ function ageUp() {
   if (G.prison > 0) prisonTick(); else { schoolTick(); jobTick(); }
   moneyTick();
   assetsTick();
+  investTick();
+  socialTick();
+  petsTick();
+  illnessTick();
   if (G.super) superYearly();
 
   if (naturalDeath()) return;
@@ -131,14 +138,15 @@ function ageUp() {
     if (!G.super && G.age >= 3 && chance(0.25)) say(pick(HINTS), 'hint');
     runYearEvents();
   }
-  render();
-  save();
+  sfx('age');
+  if (!isModalOpen()) nextModal();
 }
 
 function yearlyStats() {
   const st = G.stats;
   st.happy = clamp(st.happy + rand(-4, 3));
   if (G.age > 40) st.health = clamp(st.health - rand(0, Math.ceil((G.age - 35) / 10)));
+  else st.health = clamp(st.health + rand(0, 3));
   if (G.age > 30 && chance(0.5)) st.looks = clamp(st.looks - 1);
   if (G.age < 18 && chance(0.3)) st.looks = clamp(st.looks + rand(-2, 3));
   if (G.super && pw('heal')) st.health = clamp(st.health + pw('heal'));
@@ -261,7 +269,10 @@ function die(cause) {
   if (!G.alive) return;
   G.alive = false;
   G.cause = cause;
+  Q.length = 0; current = null; $('#modal').hidden = true;
   say(`☠️ You died at age ${G.age} from ${cause}.`, 'bad');
+  sfx('bad');
+  recordLegend();
   save();
   showDeath();
 }
@@ -291,7 +302,12 @@ function load() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     G = JSON.parse(raw);
-    if (G) { G.assets = G.assets || []; G.renting = !!G.renting; }
+    if (G) {
+      G.assets = G.assets || []; G.renting = !!G.renting; G.pets = G.pets || []; G.social = G.social || { followers: 0 };
+      G.invest = G.invest || {}; G.conditions = G.conditions || []; G.achievements = G.achievements || [];
+      G.generation = G.generation || 1; G.goals = G.goals || pickGoals(); G.flags = G.flags || {};
+      if (!G.districts) initCity();
+    }
     return !!(G && G.alive);
   } catch (e) { return false; }
 }

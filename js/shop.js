@@ -132,7 +132,6 @@ const SHOP = [
   { id: 'console', kind: 'luxury', emoji: '🎮', name: 'Gaming Console', cost: 500, happy: 6, min: 6 },
   { id: 'phone', kind: 'luxury', emoji: '📱', name: 'Latest Smartphone', cost: 1200, happy: 4, looks: 1, min: 10 },
   { id: 'guitar', kind: 'luxury', emoji: '🎸', name: 'Electric Guitar', cost: 1500, happy: 5, smarts: 2, min: 10 },
-  { id: 'dog', kind: 'luxury', emoji: '🐕', name: 'Adopt a Dog', cost: 400, happy: 10, health: 2, min: 8 },
   { id: 'boat', kind: 'luxury', emoji: '🚤', name: 'Speedboat', cost: 120000, happy: 12, min: 18 },
   { id: 'art', kind: 'luxury', emoji: '🖼️', name: 'Famous Painting', cost: 900000, happy: 8, smarts: 2, min: 18 },
   { id: 'yacht', kind: 'luxury', emoji: '🛥️', name: 'Superyacht', cost: 15000000, happy: 20, looks: 3, min: 18 },
@@ -143,7 +142,7 @@ const rnd = v => Array.isArray(v) ? rand(v[0], v[1]) : (v || 0);
 
 function owned(id) { return (G.assets || []).filter(a => a.id === id); }
 function assetValue() { return (G.assets || []).reduce((t, a) => t + (a.kind === 'wear' ? 0 : a.value), 0); }
-function netWorth() { return G.money - G.debt + assetValue(); }
+function netWorth() { return G.money - G.debt + assetValue() + invested(); }
 
 function buyItem(it) {
   if (G.age < it.min) return toast(`You need to be ${it.min} for that.`);
@@ -240,5 +239,6 @@ function shopPanel() {
     ? row(it.emoji, G.renting ? 'Move out of your apartment' : it.name, G.renting ? 'Stop paying rent' : '$1,400/month · your own place', () => buyItem(it), { disabled: a < 18, why: 'You need to be 18.' })
     : item(it))));
   out.append(section('Luxury & Fun', list('luxury').map(item)));
+  if (a >= 18) out.append(section(`Investing · ${money(invested())} invested`, FUNDS.map(f => row(f.emoji, f.name, `${f.desc}${G.invest && G.invest[f.id] ? ` · <b>${money(G.invest[f.id])}</b>` : ''}`, () => fundActions(f)))));
   return out;
 }

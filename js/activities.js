@@ -118,7 +118,7 @@ function advHike() {
     { label: 'Run!', fn: () => chance(0.3) ? next() : (G.lastInjury = 'a bear attack', finish('🐻', 'Never Run From a Bear', 'Bears are fast. Very fast.', { health: -rand(20, 35), happy: -10 }, '🐻 You ran from a bear and it caught you.', 'bad')) },
     { label: '⚡ Use your powers', show: hasPower, fn: () => { fx({ sus: 3 }); next(); } },
   ]);
-  const summit = () => finish('🏔️', 'The Summit', 'You reach the top of Granite Peak. Clouds below, the whole city tiny on the horizon. You feel like you could do anything.', { health: rand(5, 9), happy: rand(10, 15) }, '🏔️ You hiked to the summit of Granite Peak.', 'good');
+  const summit = () => (G.flags.summit = true) && finish('🏔️', 'The Summit', 'You reach the top of Granite Peak. Clouds below, the whole city tiny on the horizon. You feel like you could do anything.', { health: rand(5, 9), happy: rand(10, 15) }, '🏔️ You hiked to the summit of Granite Peak.', 'good');
   scene('🥾', 'Granite Peak', 'The trailhead map shows three routes. The air smells like pine.', [
     { label: '🌲 Easy loop trail', fn: () => {
       const f = chance(0.35) ? meetFriend('on a hiking trail', ...nearAge(10)) : null;

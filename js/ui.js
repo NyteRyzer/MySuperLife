@@ -25,10 +25,12 @@ function popup(spec) { Q.push(spec); if (!current) nextModal(); }
 function nextModal() {
   const root = $('#modal');
   if (!G || !G.alive) Q.length = 0;
+  if (!Q.length && G && G.alive) { checkMoves(); }
   if (!Q.length) {
     current = null;
     root.hidden = true;
     checkDeath();
+    if (G && G.alive) { checkGoals(); checkAchievements(); }
     render();
     save();
     return;
@@ -53,6 +55,7 @@ function nextModal() {
     h('button', { class: `choice ${c.cls || ''}`, onclick: () => choose(c, input ? input.value.trim() : undefined) },
       c.label, c.hint ? h('small', {}, c.hint) : null))));
   root.replaceChildren(card);
+  if (root.hidden) sfx('pop');
   root.hidden = false;
   if (input) setTimeout(() => input.focus(), 50);
 }
@@ -71,8 +74,7 @@ function toast(msg) {
   t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
-  render();
-  save();
+  if (!isModalOpen()) nextModal(); else render();
 }
 
 // ---------- main render ----------
@@ -129,10 +131,15 @@ function render() {
 }
 let renderScrollPending = true;
 
+const lastStat = {};
 function statBar(label, v, cls) {
   const color = cls === 'danger' ? (v > 70 ? 'var(--bad)' : v > 40 ? 'var(--warn)' : 'var(--ok)')
     : cls ? `var(--${cls})` : v < 25 ? 'var(--bad)' : v < 50 ? 'var(--warn)' : 'var(--ok)';
-  return h('div', { class: 'stat' },
+  const key = label.replace(/[^A-Za-z ]/g, '').trim();
+  const prev = lastStat[key];
+  lastStat[key] = Math.round(v);
+  const flash = prev == null || prev === Math.round(v) ? '' : Math.round(v) > prev ? 'up' : 'down';
+  return h('div', { class: `stat ${flash}` },
     h('span', { class: 'stat-label' }, label),
     h('div', { class: 'bar' }, h('div', { class: 'fill', style: `width:${Math.round(v)}%;background:${color}` })),
     h('span', { class: 'stat-val' }, `${Math.round(v)}%`));
@@ -148,8 +155,8 @@ function openSheet(name) {
 function closeSheet() { currentSheet = null; $('#sheet').hidden = true; }
 
 function renderSheet() {
-  const titles = { career: '💼 Occupation', people: '❤️ Relationships', activities: '🎯 Activities', powers: '⚡ Powers', shop: '🛍️ Shopping' };
-  const body = { career: careerPanel, people: peoplePanel, activities: activitiesPanel, powers: powersPanel, shop: shopPanel }[currentSheet]();
+  const titles = { career: '💼 Occupation', people: '❤️ Relationships', activities: '🎯 Activities', powers: '⚡ Powers', shop: '🛍️ Shopping', profile: '🪪 Profile' };
+  const body = { career: careerPanel, people: peoplePanel, activities: activitiesPanel, powers: powersPanel, shop: shopPanel, profile: profilePanel }[currentSheet]();
   const scroller = $('#sheet-body');
   const top = scroller.scrollTop;
   $('#sheet-title').textContent = titles[currentSheet];
@@ -210,7 +217,9 @@ function peoplePanel() {
   const groups = order.map(r => [r, G.people.filter(p => p.role === r)]).filter(([, l]) => l.length);
   const names = { Parent: 'Parents', Sibling: 'Siblings', Spouse: 'Spouse', Partner: 'Partner', Child: 'Children', 'Best Friend': 'Best Friends', Friend: 'Friends', Ex: 'Exes' };
   const top = G.age >= 5 ? section('Social', row('🤝', 'Make new friends', 'School, work, the park, online and more', actMakeFriends)) : null;
-  return h('div', {}, top, groups.length ? groups.map(([r, list]) => section(names[r],
+  const pets = section('Pets', livingPets().map(p => row(p.emoji, p.name, `${p.powered ? `⚡ Super ${p.kind.toLowerCase()} (${POWERS[p.powered].name})` : p.kind} · Age ${p.age} · ❤️ ${p.bond}%`, () => petActions(p))),
+    G.age >= 5 ? row('🐾', 'Adopt a pet', 'Visit the animal shelter', actAdoptPet) : null);
+  return h('div', {}, top, pets, groups.length ? groups.map(([r, list]) => section(names[r],
     list.sort((a, b) => b.alive - a.alive).map(p => row(personEmoji(p), fullName(p),
       p.alive ? `${roleLabel(p)} · Age ${p.age}${p.trait ? ` · ${TRAIT_EMOJI[p.trait]} ${p.trait}` : ''} · ❤️ ${p.bond}%${G.super && !G.super.exposed && p.knows ? ' · 🤫 knows' : ''}` : `${roleLabel(p)} · Deceased`,
       () => personActions(p), { disabled: !p.alive, why: `${p.first} has passed away.` }))))
@@ -230,16 +239,25 @@ function activitiesPanel() {
   return h('div', {},
     section('Shopping', row('🛍️', 'Go shopping', 'Clothes, cars, homes and more', () => openSheet('shop'), { cls: 'feature' })),
     adv.length ? section('Adventures', adv.map(x => row(x.emoji, x.name, G.used['adv_' + advKey(x)] ? 'Done this year' : x.sub, x.fn, { cls: G.used['adv_' + advKey(x)] ? 'done' : '' }))) : null,
+    section('Side Hustles', HUSTLES.filter(x => a >= x.min && (!x.max || a <= x.max)).map(x => row(x.emoji, x.name, G.used['hustle_' + x.id] ? 'Done this year' : `Earn ${money(Math.max(0, x.pay[0]))}–${money(x.pay[1])}`, () => doHustle(x), { cls: G.used['hustle_' + x.id] ? 'done' : '' }))),
+    a >= 12 ? section(`Social Media · ${followersText((G.social && G.social.followers) || 0)} followers${G.social && G.social.verified ? ' ✔️' : ''}`,
+      row('🤳', 'Post a selfie', 'Looks help', () => socialPost('selfie')),
+      row('😂', 'Post a meme', 'Smarts help', () => socialPost('meme')),
+      row('💃', 'Post a dance video', 'Could go viral', () => socialPost('dance')),
+      row('🔴', 'Go live', 'Stream to your fans', () => socialPost('stream')),
+      G.super && G.super.alignment ? row('📹', `Post “leaked” ${G.super.alias} footage`, 'Huge views · raises suspicion', () => socialPost('hero')) : null) : null,
     section('Mind & Body',
       row('📚', 'Library', 'Smarts', actLibrary),
       a >= 8 ? row('🧘', 'Meditate', G.super ? 'Happiness & power control' : 'Happiness', actMeditate) : null,
-      row('🩺', 'Doctor', a < 18 ? 'Free for kids' : '$800', actDoctor)),
+      row('🩺', 'Doctor', a < 18 ? 'Free for kids' : '$800', actDoctor),
+      (G.conditions || []).length ? row('🏥', 'Treat your conditions', (G.conditions || []).map(id => CONDITIONS.find(c => c.id === id).name).join(', '), () => openSheet('profile'), { cls: 'danger' }) : null),
     section('Social',
       a >= 5 ? row('🤝', 'Make friends', 'Meet new people', actMakeFriends) : null,
       a >= 16 ? row('🍸', 'Night out', 'Happiness', actNightOut) : null,
       a >= 16 && !partner() ? row('💘', 'Find love', 'Meet someone new', actFindLove) : null,
       a >= 18 ? row('✈️', 'Vacation', '$3,500', actVacation) : null),
-    a >= 18 ? section('Money', row('🎰', 'Lottery ticket', '$10 · tap as much as you want', actLottery)) : null);
+    a >= 10 ? section('Crime', STREET_CRIMES.filter(c => a >= c.min).map(c => row(c.emoji, c.name, G.used['crime_' + c.id] ? 'Done this year' : `${Math.round(c.catch * 100)}% chance of getting caught`, () => doStreetCrime(c), { cls: 'danger' }))) : null,
+    a >= 18 ? section('Life', row('🚚', 'Move to a new city', `$5,000 · you live in ${G.city}`, actMove), row('🎰', 'Lottery ticket', '$10 · tap as much as you want', actLottery)) : null);
 }
 function advKey(x) { return { advGym: 'gym', advClub: 'club', advFestival: 'fest', advHike: 'hike', advCasino: 'casino', advBeach: 'beach', advThemePark: 'park', advDojo: 'dojo' }[x.fn.name]; }
 
@@ -265,7 +283,8 @@ function powersPanel() {
         h('div', { class: 'hc-sub' }, s.exposed ? `🎭 Identity public: ${G.first} ${G.last}` : `🎭 Secret identity: ${G.first} ${G.last}`))),
     h('div', { class: 'hc-powers' },
       h('span', { class: 'pill' }, `${p.emoji} ${p.name}`),
-      s.second ? h('span', { class: 'pill' }, `${POWERS[s.second].emoji} ${POWERS[s.second].name}`) : null),
+      s.second ? h('span', { class: 'pill' }, `${POWERS[s.second].emoji} ${POWERS[s.second].name}`) : null,
+      (s.moves || []).map(m => h('span', { class: 'pill move' }, `🌟 ${m.name}`))),
     h('div', { class: 'hc-origin' }, `Origin: “${s.origin}” at age ${s.originAge} · Costume: ${s.color} ${COSTUMES[s.costume].name}`),
     statBar('⚡ Power', s.level, 'power'),
     statBar('🎯 Control', s.control),
@@ -315,7 +334,10 @@ function powersPanel() {
       : row('☢️', 'Build a doomsday device', `Requires a ${BASES[1].name.villain}`, null, { disabled: true, why: `You need a ${BASES[1].name.villain} first.` }),
   ]));
 
-  out.append(section('Training', row('🏋️', `Train your ${p.name}`, 'More power & control · 1 energy', actTrain)));
+  out.append(h('div', { class: 'section' }, h('div', { class: 'section-title' }, `${G.city} · ${hero ? `${safeDistricts().length} safe districts` : `${ownedDistricts().length} districts controlled`} · crime ${cityCrime()}%`), cityMap()));
+  out.append(section(hero ? 'Protect the City' : 'Take Over the City', cityRows()));
+  const nextMove = MOVE_TIERS.find(t => !(s.moves || []).some(m => m.tier === t.tier));
+  out.append(section('Training', row('🏋️', `Train your ${p.name}`, `More power & control · 1 energy${nextMove ? ` · next signature move at power ${nextMove.level}` : ''}`, actTrain)));
 
   const nextC = COSTUMES[s.costume + 1];
   const nextB = BASES[s.base + 1];
@@ -354,7 +376,8 @@ function showStart() {
     hasSave ? h('button', { class: 'big-btn alt', onclick: () => { st.hidden = true; renderScrollPending = true; render(); } }, `▶ Continue as ${G.first} ${G.last} (age ${G.age})`) : null,
     h('div', { class: 'form' }, first, last, gender, citySel),
     h('button', { class: 'big-btn', onclick: () => begin({ first: first.value, last: last.value, gender: gender.value, city: citySel.value }) }, '✨ Start New Life'),
-    h('button', { class: 'big-btn ghost', onclick: () => begin({}) }, '🎲 Random Life')));
+    h('button', { class: 'big-btn ghost', onclick: () => begin({}) }, '🎲 Random Life'),
+    h('button', { class: 'link-btn', onclick: showLegends }, `🏛️ Hall of Legends${(loadMeta().lives || 0) ? ` (${loadMeta().lives})` : ''}`)));
   st.hidden = false;
 }
 
@@ -370,8 +393,11 @@ function showDeath() {
       : `${s.ruler ? 'Supreme Ruler of Earth. ' : ''}${s.exposed ? 'The world feared you' : 'Your secret died with you'} as <b>${esc(s.alias)}</b>, who stole ${money(s.stats.stolen)} and defeated ${s.stats.defeated} heroes.`;
   }
   const d = $('#death');
+  const r = ribbon();
+  const kids = heirs();
   d.replaceChildren(h('div', { class: 'start-card' },
     h('div', { class: 'card-emoji' }, '🪦'),
+    h('div', { class: 'ribbon' }, h('span', {}, r.emoji), h('b', {}, r.name), h('small', {}, r.desc)),
     h('h2', {}, `${G.first} ${G.last}`),
     s && s.alias ? h('div', { class: `badge big ${s.alignment}` }, `${hero ? '🦸' : '🦹'} ${s.alias}`) : null,
     h('p', {}, `Died at age ${G.age} from ${G.cause}.`),
@@ -381,8 +407,13 @@ function showDeath() {
       h('div', {}, `🎓 ${EDU_NAMES[G.edu.level]}`),
       h('div', {}, `💼 ${G.job ? jobTitle(G.job) : G.retiredJob ? 'Retired' : 'No job'}`),
       s && s.alignment ? h('div', {}, `${POWERS[s.power].emoji} ${POWERS[s.power].name} · ${tierName(s.level)}`) : null,
-      s && s.nemesis ? h('div', {}, `😈 Nemesis: ${s.nemesis.name}`) : null),
-    h('button', { class: 'big-btn', onclick: () => { clearSave(); showStart(); } }, '✨ New Life')));
+      s && s.nemesis ? h('div', {}, `😈 Nemesis: ${s.nemesis.name}`) : null,
+      h('div', {}, `🏆 ${(G.achievements || []).length} achievements · 🎯 ${(G.goals || []).filter(g => g.done).length}/${(G.goals || []).length} life goals`),
+      G.generation > 1 ? h('div', {}, `🧬 Generation ${G.generation}`) : null),
+    kids.length ? h('div', { class: 'heirs' }, h('div', { class: 'section-title' }, 'Continue as your child'),
+      kids.map(c => h('button', { class: 'big-btn alt', onclick: () => { continueAsChild(c); d.hidden = true; renderScrollPending = true; render(); } }, `${personEmoji(c)} ${c.first}, age ${c.age}`))) : null,
+    h('button', { class: kids.length ? 'big-btn ghost' : 'big-btn', onclick: () => { clearSave(); showStart(); } }, '✨ New Life'),
+    h('button', { class: 'link-btn', onclick: showLegends }, '🏛️ Hall of Legends')));
   d.hidden = false;
 }
 
@@ -394,10 +425,14 @@ window.addEventListener('DOMContentLoaded', () => {
     if (currentSheet === name) closeSheet(); else openSheet(name);
   }));
   $('#sheet-close').addEventListener('click', closeSheet);
+  $('#avatar').addEventListener('click', () => { if (currentSheet === 'profile') closeSheet(); else openSheet('profile'); });
   $('#money').addEventListener('click', () => { if (currentSheet === 'shop') closeSheet(); else openSheet('shop'); });
   $('#menu-btn').addEventListener('click', () => popup({
     emoji: '⚙️', title: 'Menu', text: 'Your life saves automatically.',
     choices: [
+      { label: '🪪 Profile & achievements', fn: () => openSheet('profile') },
+      { label: '🏛️ Hall of Legends', fn: showLegends },
+      { label: `🔊 Sound: ${soundOn() ? 'On' : 'Off'}`, fn: () => { toggleSound(); toast(`Sound ${soundOn() ? 'on' : 'off'}`); } },
       { label: '🔄 Start a new life', fn: () => popup({ emoji: '⚠️', title: 'Are you sure?', text: 'Your current life will be lost forever.', choices: [{ label: 'Yes, start over', fn: () => { clearSave(); showStart(); } }, { label: 'Cancel' }] }) },
       { label: 'Close' },
     ],

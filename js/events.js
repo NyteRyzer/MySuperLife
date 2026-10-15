@@ -166,9 +166,9 @@ const LIFE_EVENTS = [
     },
   },
   {
-    id: 'carcrash', min: 17, max: 90, w: 1,
+    id: 'carcrash', min: 17, max: 90, w: 0.5,
     fire() {
-      const d = rand(10, 35);
+      const d = rand(8, 25);
       fx({ health: -d, happy: -8 });
       G.lastInjury = 'a car accident';
       say(`🚗 You were in a car accident. (-${d} health)`, 'bad');
@@ -305,12 +305,11 @@ const SUPER_EVENTS = [
       const vl = roleLabel(victim).toLowerCase();
       popup({ emoji: '🆘', title: 'Kidnapped!', text: `${n.name} has kidnapped your ${vl} <b>${victim.first}</b>! A note says: “Come alone to the old clock tower at midnight.”`, choices: [
         { label: 'Go alone and rescue them', fn: () => {
-          if (chance(winChance(n.level + 40))) { victim.bond = clamp(victim.bond + 20); fx({ rep: 10, happy: 10 }); n.losses++; say(`🦸 You rescued your ${vl} ${victim.first} from ${n.name}!`, 'good'); result('🦸', 'Rescued!', `You beat ${n.name} and carried ${victim.first} to safety.`); }
-          else {
+          duel(n.level + 40, { name: n.name, power: n.power }, `At the top of the clock tower, ${victim.first} is tied up and ${n.name} is waiting.`, () => { victim.bond = clamp(victim.bond + 20); fx({ rep: 10, happy: 10 }); n.losses++; say(`🦸 You rescued your ${vl} ${victim.first} from ${n.name}!`, 'good'); result('🦸', 'Rescued!', `You beat ${n.name} and carried ${victim.first} to safety.`); }, () => {
             const dmg = injure(15, 35, `a fight with ${n.name}`);
             if (chance(0.35)) { victim.alive = false; fx({ happy: -30 }); say(`💀 You failed to save your ${vl} ${victim.first}. ${n.name} killed them.`, 'bad'); result('💀', 'Too Late', `You weren’t strong enough. ${victim.first} is gone. (-${dmg} health)`); }
             else { fx({ happy: -10 }); say(`You lost to ${n.name}, but ${victim.first} escaped in the chaos. (-${dmg} health)`); result('😮‍💨', 'Barely', `You lost the fight, but ${victim.first} slipped away in the chaos. (-${dmg} health)`); }
-          }
+          }, { canFlee: false });
         } },
         { label: 'Call the authorities', fn: () => {
           if (chance(0.5)) { say(`The police rescued your ${vl} ${victim.first}.`); fx({ rep: -3 }); }
@@ -408,7 +407,7 @@ const SUPER_EVENTS = [
     fire() {
       const name = pick(['Deadlock', 'The Huntsman', 'Iron Maiden', 'Shrike', 'Tracker']);
       popup({ emoji: '🎯', title: 'Bounty Hunter', text: `A bounty hunter named <b>${name}</b> has come to collect the price on your head.`, choices: [
-        { label: 'Fight', fn: () => { if (chance(winChance(45))) { fx({ rep: 5 }); say(`You defeated the bounty hunter ${name}.`, 'good'); } else { const d = injure(15, 30, `bounty hunter ${name}`); say(`${name} nearly took you down. (-${d} health)`, 'bad'); } } },
+        { label: 'Fight', fn: () => duel(45, { name, power: 'marksman' }, '', () => { fx({ rep: 5 }); say(`You defeated the bounty hunter ${name}.`, 'good'); result('🎯', 'Bounty Denied', `${name} won’t be collecting anything today.`); }, () => { const d = injure(15, 30, `bounty hunter ${name}`); say(`${name} nearly took you down. (-${d} health)`, 'bad'); result('🤕', 'Barely Escaped', `${name} nearly took you down. (-${d} health)`); }) },
         { label: 'Pay them off ($100,000)', show: () => G.money >= 100000, fn: () => { fx({ money: -100000 }); say(`You paid off the bounty hunter ${name}.`); } },
       ] });
     },

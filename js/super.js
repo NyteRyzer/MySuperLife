@@ -23,7 +23,7 @@ function priceMult() { return pw('gadget', 1); }
 // Overall combat strength. Starts ~30, tops out ~150.
 function combatScore() {
   const s = G.super;
-  return s.level + pw('fight') + gadgetBonus() + baseBonus() + teamBonus() + (s.sidekick ? 4 : 0) + G.stats.health / 10;
+  return s.level + pw('fight') + gadgetBonus() + baseBonus() + teamBonus() + (s.sidekick ? 4 : 0) + superPetBonus() + G.stats.health / 10;
 }
 function winChance(diff) { return clamp((combatScore() * 1.2 + 40 - diff) / 100, 0.05, 0.95); }
 
@@ -66,7 +66,7 @@ function originChoice(o, ch) {
   const p = POWERS[powerId];
   G.super = {
     origin: o.title, originAge: G.age, power: powerId, second: null,
-    level: clamp(rand(5, 15) + (ch.tier || 0), 1, 40), control: rand(10, 30),
+    level: clamp(rand(5, 15) + (ch.tier || 0) + (G.legacy ? 6 : 0), 1, 46), control: rand(10, 30),
     alignment: null, alias: '', color: null, costume: 0, gadgets: [], base: -1,
     rep: 0, heat: 0, suspicion: 0, exposed: false, registered: null,
     team: null, sidekick: null, nemesis: null, agency: false, retired: false,
@@ -197,6 +197,7 @@ function superYearly() {
   if (s.retired) return;
   if (!s.exposed) s.suspicion = clamp(s.suspicion - rand(2, 6));
   s.heat = clamp(s.heat - rand(3, 8));
+  if (G.prison === 0) { cityYearly(); if (s.activeLastYear || chance(0.3)) headline(); }
   if (!s.activeLastYear && s.rep > 10) s.rep = clamp(s.rep - rand(1, 4));
   s.activeLastYear = false;
   s.control = clamp(s.control + rand(0, 2));
@@ -233,9 +234,8 @@ function nemesisAvailable() { const n = G.super.nemesis; return n && n.alive && 
 function fightNemesis(context) {
   const s = G.super, n = s.nemesis;
   const np = POWERS[n.power];
-  const p = chance(winChance(n.level + 30));
   markActive();
-  if (p) {
+  duel(n.level + 30, { name: n.name, power: n.power }, context, () => {
     n.losses++;
     fx({ rep: rand(6, 12), happy: 10, control: 2, level: rand(1, 3) });
     say(`⚔️ You ${pick(POWERS[s.power].verbs)} your nemesis ${n.name} and won the battle!`, 'good');
@@ -249,14 +249,14 @@ function fightNemesis(context) {
         { label: 'Humiliate them on live TV', fn: () => { fx({ rep: 10, heat: 10 }); say(`You broadcast ${n.name}’s defeat to the whole world.`); } },
         { label: 'Leave them beaten', fn: () => { say(`You left ${n.name} beaten in the rubble.`); } },
       ];
-    popup({ emoji: '🏆', title: 'Victory!', text: `${context || ''}You ${pick(POWERS[s.power].verbs)} <b>${n.name}</b>! Their ${np.name.toLowerCase()} was no match for you.<br><br>What now?`, choices });
-  } else {
+    popup({ emoji: '🏆', title: 'Victory!', text: `You ${pick(POWERS[s.power].verbs)} <b>${n.name}</b>! Their ${np.name.toLowerCase()} was no match for you.<br><br>What now?`, choices });
+  }, () => {
     n.wins++;
     const dmg = injure(12, 35, `a battle with ${n.name}`);
     fx({ rep: -rand(3, 8), happy: -10, sus: 6 });
     say(`💥 Your nemesis ${n.name} defeated you in battle. (-${dmg} health)`, 'bad');
-    result('💥', 'Defeated', `${context || ''}<b>${n.name}</b> used ${np.name.toLowerCase()} to beat you badly. You barely escaped with your life. (-${dmg} health)`);
-  }
+    result('💥', 'Defeated', `<b>${n.name}</b> used ${np.name.toLowerCase()} to beat you badly. You barely escaped with your life. (-${dmg} health)`);
+  });
 }
 
 // ---------- actions (called from the Powers panel) ----------
@@ -274,6 +274,7 @@ function actTrain() {
     result('💥', 'Out of Control!', `Your ${POWERS[s.power].name.toLowerCase()} surged out of control during training. Half a city block is in ruins and the news is asking questions. (-${dmg} health, +suspicion)`);
   } else {
     say(`🏋️ You trained your ${POWERS[s.power].name.toLowerCase()}. (+${gain} power)`);
+    sfx('power');
     toast(`Power +${gain} · Control up`);
   }
 }
@@ -304,7 +305,7 @@ function actHuntVillain() {
   const name = pick(NPC_VILLAINS.filter(v => !s.nemesis || v !== s.nemesis.name));
   const d = rand(20, 45) + Math.round(s.level / 3);
   markActive();
-  if (chance(winChance(d))) {
+  duel(d, { name, power: pick(Object.keys(POWERS)) }, `You tracked the supervillain <b>${name}</b> to an abandoned warehouse. They were waiting for you.`, () => {
     s.stats.defeated++;
     fx({ rep: rand(6, 12), happy: 8, sus: rand(3, 7), level: rand(1, 2) });
     say(`🦸 You tracked down the supervillain ${name} and put them behind bars!`, 'good');
@@ -314,13 +315,13 @@ function actHuntVillain() {
       n.name = name; n.jailed = rand(2, 4);
       say(`${name} swore revenge from behind bars. You have a nemesis.`, 'bad');
     }
-  } else {
+  }, () => {
     const dmg = injure(10, 25, `a fight with ${name}`);
     fx({ rep: -4, happy: -8, sus: 5 });
     s.stats.losses++;
     say(`🤕 The supervillain ${name} got away and left you bruised. (-${dmg} health)`, 'bad');
     result('🤕', 'They Got Away', `<b>${name}</b> was ready for you. You lost the fight and they escaped. (-${dmg} health)`);
-  }
+  });
 }
 
 function actCrime() {
@@ -363,18 +364,18 @@ function actFightHero() {
   const name = pick(NPC_HEROES.filter(v => !s.nemesis || v !== s.nemesis.name));
   const d = rand(20, 45) + Math.round(s.level / 3);
   markActive();
-  if (chance(winChance(d))) {
+  duel(d, { name, power: pick(Object.keys(POWERS)) }, `You lure the hero <b>${name}</b> into a trap on a rooftop downtown.`, () => {
     s.stats.defeated++;
     fx({ rep: rand(6, 12), heat: rand(5, 12), happy: 8, level: rand(1, 2) });
     say(`🦹 You ambushed the hero ${name} and crushed them!`, 'good');
     result('🦹', 'Hero Humbled', `You lured <b>${name}</b> into a trap and ${pick(POWERS[s.power].verbs)} them. The city trembles.`);
-  } else {
+  }, () => {
     const dmg = injure(10, 25, `a fight with ${name}`);
     fx({ rep: -3, heat: 10, happy: -8 });
     s.stats.losses++;
     say(`🤕 The hero ${name} beat you and nearly captured you. (-${dmg} health)`, 'bad');
     result('🤕', 'Foiled!', `<b>${name}</b> foiled your plans and nearly dragged you to prison. (-${dmg} health)`);
-  }
+  });
 }
 
 function actNemesis() {
@@ -534,6 +535,7 @@ function switchSides() {
   s.alignment = s.alignment === 'hero' ? 'villain' : 'hero';
   s.rep = Math.round(s.rep / 3);
   s.team = null; s.agency = false;
+  (G.districts || []).forEach(d => { d.owner = null; });
   if (s.nemesis) { say(`Your old nemesis ${s.nemesis.name} can’t believe you switched sides.`); s.nemesis = null; }
   say(s.alignment === 'hero' ? `🕊️ ${esc(s.alias)} turned their back on crime and became a hero.` : `😈 ${esc(s.alias)} turned their back on justice and became a villain.`, 'super');
 }
@@ -565,7 +567,7 @@ function arrestEvent() {
       ? `The Metahuman Response Unit has you surrounded. You’re wanted for illegal vigilante activity.`
       : `SWAT teams and the Metahuman Response Unit have tracked you down. Spotlights. Helicopters. Power-dampening cuffs. “${esc(s.alias)}, come out with your hands up!”`,
     choices: [
-      { label: 'Surrender', fn: () => goToPrison(Math.max(1, Math.round(2 + s.heat / 12)), 'You surrendered peacefully.') },
+      { label: 'Surrender and face trial', fn: () => trial(hero ? 'illegal vigilante activity' : 'super-crimes', Math.max(1, Math.round(2 + s.heat / 12)), () => { s.heat = clamp(s.heat - 25); }) },
       { label: 'Fight your way out', fn: () => {
         if (chance(winChance(55))) { fx({ heat: 10, rep: 5 }); say('💥 You fought off an entire police squad and escaped!', 'good'); result('💥', 'Escaped!', 'You smashed through the police line and vanished into the night. (+heat)'); }
         else { const dmg = injure(15, 30, 'a battle with police'); if (G.stats.health > 0) goToPrison(Math.round(4 + s.heat / 8), `You fought hard but they overwhelmed you. (-${dmg} health)`); }
@@ -582,6 +584,7 @@ function arrestEvent() {
 function goToPrison(years, why) {
   const s = G.super;
   G.prison = years;
+  G.flags.wasJailed = true;
   if (G.job) { say(`You lost your job as a ${jobTitle(G.job)}.`, 'bad'); G.job = null; }
   if (G.edu.stage === 'University' || G.edu.stage === 'Graduate School') G.edu.stage = '';
   if (s) {
@@ -597,6 +600,7 @@ function actBreakOut() {
   const bonus = G.super ? pw('escape') / 100 + G.super.level / 300 : 0;
   if (chance(0.08 + bonus)) {
     G.prison = 0;
+    G.flags.brokeOut = true;
     if (G.super) fx({ heat: 40, rep: 6 });
     say('🔓 You broke out of prison!', 'good');
     result('🔓', 'Jailbreak!', 'You broke out of Blackgate in the middle of the night. You’re free — but every cop in the country is looking for you.');
