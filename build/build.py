@@ -5,7 +5,7 @@ css = (root / 'css/style.css').read_text()
 css = css.replace(':root {', ':root {\n  color-scheme: dark;', 1)
 html = (root / 'index.html').read_text()
 body = re.search(r'<body>(.*?)<script', html, re.S).group(1).strip()
-js = '\n'.join((root / f'js/{n}.js').read_text() for n in ['data', 'game', 'super', 'events', 'actions', 'ui'])
+js = '\n'.join((root / f'js/{n}.js').read_text() for n in ['data', 'game', 'super', 'events', 'actions', 'activities', 'shop', 'ui'])
 fonts = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@400;700;900&display=swap">'
 inner = f"{fonts}\n<style>\n{css}\n</style>\n{body}\n<script>\n{js}\n</script>\n"
 # Artifact build (host supplies the html/head/body skeleton)

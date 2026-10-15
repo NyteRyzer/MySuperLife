@@ -18,7 +18,10 @@ To play on your phone, turn on **GitHub Pages** for this repo (Settings → Page
 - Happiness, Health, Smarts and Looks stats, plus money and debt
 - School, university and graduate school, part-time and full-time jobs, promotions, raises and retirement
 - Parents, siblings, friends, dating, marriage, kids, and the people in your life aging and dying
-- Activities: gym, library, meditation, doctor, nights out, vacations, dating, lottery
+- **8 adventures**, each a short story with choices: Iron Temple Gym, Club Neon, Sunburst Festival, Granite Peak Hike, Golden Vault Casino (slots, blackjack, roulette), Coral Cove Beach, Thunder Mountain Park and Dragon Gate Dojo. Many have secret options if you have powers
+- **Friends**: meet people at school, work, the park, a coffee shop, online or in a club. Each person has a personality, and you choose how to approach them. Hang out, see movies, go on adventures, and make best friends
+- **Shopping**: clothes and jewelry that raise your looks, grooming (haircuts, spa days, surgery), cars from a bike to a hypercar, homes from a rented apartment to a private island, and luxury items like yachts and jets. Cars lose value, homes can gain value, and everything costs upkeep. Tap your money to open the shop
+- More activities: library, meditation, doctor, nights out, vacations, dating, lottery
 - Dozens of random life events with choices
 
 **Super life**
@@ -43,7 +46,9 @@ js/data.js        powers, origins, names, jobs, gear
 js/game.js        core life simulation (aging, school, jobs, death, saving)
 js/super.js       superpower system (origin, missions, nemesis, identity, prison)
 js/events.js      random yearly life and super events
-js/actions.js     activities, career and relationship actions
+js/actions.js     everyday activities, career and relationship actions
+js/activities.js  the 8 adventure activities
+js/shop.js        making friends, shopping and owned stuff
 js/ui.js          rendering, panels and popups
 ```
 

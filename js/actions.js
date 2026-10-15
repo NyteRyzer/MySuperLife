@@ -171,8 +171,9 @@ function personActions(p) {
   const isPartner = p.role === 'Partner' || p.role === 'Spouse';
   popup({
     emoji: personEmoji(p), title: fullName(p),
-    text: `${label} · Age ${p.age}<br>Relationship: <b>${p.bond}%</b>${knowsLine}`,
+    text: `${label} · Age ${p.age}${p.trait ? ` · ${TRAIT_EMOJI[p.trait]} ${p.trait}` : ''}<br>Relationship: <b>${p.bond}%</b>${knowsLine}`,
     choices: [
+      ...(p.role === 'Friend' || p.role === 'Best Friend' ? friendChoices(p) : []),
       { label: '⏰ Spend time together', fn: () => { if (!once(key('time'))) return; const b = rand(4, 12); p.bond = clamp(p.bond + b); fx({ happy: rand(2, 5) }); say(`You spent time with your ${label.toLowerCase()} ${p.first}.`); toast(`Relationship +${b}`); } },
       { label: '💬 Have a conversation', fn: () => { if (!once(key('talk'))) return; const b = rand(-2, 7); p.bond = clamp(p.bond + b); toast(b >= 0 ? `Relationship +${b}` : 'That got awkward…'); } },
       { label: '🌹 Compliment', fn: () => { if (!once(key('comp'))) return; p.bond = clamp(p.bond + rand(1, 5)); toast(`${p.first} smiled.`); } },

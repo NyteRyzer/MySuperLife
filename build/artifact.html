@@ -227,6 +227,14 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .stat { grid-template-columns: 100px 1fr 36px; }
 }
 
+/* adventures & shop */
+.card.adventure { border-color: var(--hero); background: radial-gradient(circle at 50% 0%, #1d3f73, var(--panel) 70%); }
+.fx-summary { margin-top: 12px; padding: 8px 10px; border-radius: 10px; background: rgba(0,0,0,.3); font-weight: 800; font-size: 13.5px; color: var(--accent); }
+.row.feature { border-color: var(--accent); background: linear-gradient(135deg, #3d3270, var(--panel-2)); }
+.row.done { opacity: .6; }
+.wardrobe { font-size: 22px; margin: -4px 2px 14px; letter-spacing: 2px; }
+#money { cursor: pointer; }
+
 </style>
 <div id="app">
     <header id="topbar">
@@ -707,7 +715,7 @@ function newLife(opts = {}) {
   G = {
     v: 1, alive: true, first, last, gender, city: opts.city || pick(CITIES), age: 0,
     stats: { happy: rand(60, 100), health: rand(75, 100), smarts: rand(10, 90), looks: rand(10, 100) },
-    money: 0, debt: 0,
+    money: 0, debt: 0, assets: [], renting: false,
     edu: { level: 0, stage: '', years: 0, dropped: false },
     job: null, retiredJob: false, pension: 0,
     people: [], nextId: 0, used: {}, log: [], flags: {},
@@ -742,6 +750,7 @@ function ageUp() {
   peopleTick();
   if (G.prison > 0) prisonTick(); else { schoolTick(); jobTick(); }
   moneyTick();
+  assetsTick();
   if (G.super) superYearly();
 
   if (naturalDeath()) return;
@@ -912,6 +921,7 @@ function load() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     G = JSON.parse(raw);
+    if (G) { G.assets = G.assets || []; G.renting = !!G.renting; }
     return !!(G && G.alive);
   } catch (e) { return false; }
 }
@@ -2206,8 +2216,9 @@ function personActions(p) {
   const isPartner = p.role === 'Partner' || p.role === 'Spouse';
   popup({
     emoji: personEmoji(p), title: fullName(p),
-    text: `${label} · Age ${p.age}<br>Relationship: <b>${p.bond}%</b>${knowsLine}`,
+    text: `${label} · Age ${p.age}${p.trait ? ` · ${TRAIT_EMOJI[p.trait]} ${p.trait}` : ''}<br>Relationship: <b>${p.bond}%</b>${knowsLine}`,
     choices: [
+      ...(p.role === 'Friend' || p.role === 'Best Friend' ? friendChoices(p) : []),
       { label: '⏰ Spend time together', fn: () => { if (!once(key('time'))) return; const b = rand(4, 12); p.bond = clamp(p.bond + b); fx({ happy: rand(2, 5) }); say(`You spent time with your ${label.toLowerCase()} ${p.first}.`); toast(`Relationship +${b}`); } },
       { label: '💬 Have a conversation', fn: () => { if (!once(key('talk'))) return; const b = rand(-2, 7); p.bond = clamp(p.bond + b); toast(b >= 0 ? `Relationship +${b}` : 'That got awkward…'); } },
       { label: '🌹 Compliment', fn: () => { if (!once(key('comp'))) return; p.bond = clamp(p.bond + rand(1, 5)); toast(`${p.first} smiled.`); } },
@@ -2264,6 +2275,502 @@ function personEmoji(p) {
   if (p.age < 13) return m ? '👦' : '👧';
   if (p.age < 60) return m ? '👨' : '👩';
   return m ? '👴' : '👵';
+}
+
+// Immersive multi-step activities ("adventures"). Each one is a short chain of scenes with choices.
+
+const FX_LABELS = { happy: '😊 Happiness', health: '❤️ Health', smarts: '🧠 Smarts', looks: '✨ Looks', money: '💰', rep: '🌟 Reputation', control: '🎯 Control', level: '⚡ Power' };
+
+function fxSummary(o) {
+  if (!o) return '';
+  const parts = Object.entries(o).filter(([k, v]) => v && FX_LABELS[k]).map(([k, v]) =>
+    k === 'money' ? `💰 ${v > 0 ? '+' : '-'}${money(Math.abs(v)).replace('-', '')}` : `${FX_LABELS[k]} ${v > 0 ? '+' : ''}${v}`);
+  if (o.sus > 0) parts.push('🎭 Suspicion up');
+  return parts.length ? `<div class="fx-summary">${parts.join(' · ')}</div>` : '';
+}
+
+// A scene in an adventure.
+function scene(emoji, title, text, choices) {
+  popup({ emoji, title, text, cls: 'adventure', choices });
+}
+// The final scene: apply effects, log it, show a summary.
+function finish(emoji, title, text, effects, log, cls) {
+  fx(effects);
+  if (log) say(log, cls);
+  popup({ emoji, title, text: text + fxSummary(effects), cls: 'adventure', choices: [{ label: 'Done' }] });
+}
+// Sometimes you meet someone who becomes a friend.
+function meetFriend(where, ageLo, ageHi) {
+  const f = addPerson({ ...randomPerson(null, Math.max(5, ageLo), ageHi, 'Friend'), trait: pick(FRIEND_TRAITS), bond: rand(55, 80) });
+  say(`🤝 You made a new friend, ${fullName(f)}, ${where}.`, 'good');
+  return f;
+}
+function nearAge(spread = 4) { return [Math.max(5, G.age - spread), G.age + spread]; }
+
+// ---------- 1. Gym ----------
+function advGym() {
+  if (!once('adv_gym')) return;
+  scene('🏋️', 'Iron Temple Gym', 'Bass is thumping, chalk dust hangs in the air, and somebody just dropped a deadlift that shook the floor. What’s the plan today?', [
+    { label: '🏋️ Heavy lifting', fn: () => scene('🏋️', 'The Bench Press', 'You load up the bar. A massive bodybuilder in a stringer tank wanders over. “Want a spot, champ?”', [
+      { label: 'Accept the spot', fn: () => finish('💪', 'Solid Session', 'He hypes you up through every rep. You leave sore and proud.', { health: rand(4, 8), looks: rand(1, 3), happy: 3 }, '🏋️ You had a great lifting session at Iron Temple Gym.') },
+      { label: 'Go for a new personal record alone', fn: () => chance(0.5 + G.stats.health / 300)
+        ? finish('🏆', 'New PR!', 'The bar flies up. A couple of people actually clap.', { health: rand(5, 9), looks: 3, happy: 8 }, '🏆 You set a new personal record at the gym!', 'good')
+        : (G.lastInjury = 'a gym accident', finish('🤕', 'Pulled Something', 'Halfway up, something in your shoulder goes pop. Ouch.', { health: -rand(6, 12), happy: -4 }, '🤕 You hurt yourself lifting at the gym.', 'bad')) },
+      { label: '⚡ Lift the entire weight rack', show: () => hasPower() && (G.super.power === 'strength' || G.super.second === 'strength' || G.super.power === 'size'), fn: () => finish('😱', 'Oops', 'You lift the whole rack — plates, bars and all — over your head. The gym goes dead silent. Someone is filming.', { happy: 6, sus: 18 }, '⚡ You showed off your strength at the gym. People are talking.', 'super') },
+    ]) },
+    { label: '🏃 Cardio', fn: () => scene('🏃', 'The Treadmill Duel', 'You’re jogging when the person on the next treadmill cranks their speed up and smirks at you. It’s on.', [
+      { label: 'Race them', fn: () => chance(G.stats.health / 140)
+        ? finish('🏅', 'You Win', 'They tap out first, gasping. You give a little nod and keep running.', { health: rand(5, 9), happy: 6 }, '🏃 You won a treadmill race against a total stranger.')
+        : finish('😮‍💨', 'You Lose', 'You nearly fly off the back of the treadmill. They wave goodbye.', { health: rand(3, 5), happy: -3 }, '🏃 You lost a treadmill race. Humbling.') },
+      { label: 'Ignore them and do your thing', fn: () => finish('🎧', 'Steady Pace', 'Headphones on, world off. A solid, peaceful run.', { health: rand(4, 7), happy: 2 }, '🏃 You went for a run at the gym.') },
+      { label: '⚡ Hit 60 mph', show: () => hasPower() && pw('energy') > 0, fn: () => finish('💨', 'Treadmill Destroyed', 'The treadmill belt snaps and launches across the room. You walk away whistling.', { happy: 7, sus: 15, money: -1500 }, '⚡ You broke a treadmill with your powers and had to pay for it.', 'super') },
+    ]) },
+    { label: '🧘 Yoga class', fn: () => {
+      const f = chance(0.45) ? meetFriend('in yoga class', ...nearAge(8)) : null;
+      finish('🧘', 'Namaste', `The instructor guides you into poses you didn’t know your body could do. You leave feeling ten pounds lighter.${f ? `<br><br>Afterward, <b>${f.first}</b> from the next mat asks if you want to grab a smoothie. You’re friends now!` : ''}`, { health: rand(3, 6), happy: rand(5, 9) }, '🧘 You took a yoga class.');
+    } },
+    { label: '🥊 Boxing bag', fn: () => finish('🥊', 'Bag Work', 'Jab, jab, cross. You pour every frustration you have into that bag.', { health: rand(4, 7), happy: rand(4, 7), control: G.super ? 2 : 0 }, '🥊 You hit the heavy bag at the gym.') },
+  ]);
+}
+
+// ---------- 2. Nightclub ----------
+function advClub() {
+  if (!once('adv_club')) return;
+  const inside = () => scene('🪩', 'Inside Club Neon', 'Lasers slice through fog. The DJ drops a beat and the whole floor jumps. Where do you go?', [
+    { label: '💃 Hit the dance floor', fn: () => (G.stats.looks + rand(0, 60) > 65)
+      ? finish('🔥', 'Main Character', 'A circle forms around you. Phones come out. You absolutely own the floor.', { happy: 12, looks: 1 }, '🪩 You stole the show on the dance floor at Club Neon.', 'good')
+      : finish('🫠', 'Questionable Moves', 'You try a spin, knock over someone’s drink, and slip. Somebody laughs. Loudly.', { happy: -4 }, '🪩 You embarrassed yourself on the dance floor.') },
+    { label: '🍹 Buy a round for strangers ($200)', show: () => G.money >= 200, fn: () => {
+      const f = meetFriend('at Club Neon', ...nearAge(6));
+      finish('🍹', 'Instant Squad', `The whole booth cheers your name. By last call, <b>${f.first}</b> has your number and calls you their new best friend.`, { money: -200, happy: 8 }, '🍹 You bought a round of drinks for a booth of strangers.');
+    } },
+    { label: '😍 Talk to someone cute', show: () => !partner(), fn: () => {
+      const c = randomPerson(null, Math.max(18, G.age - 5), G.age + 5, 'Partner');
+      if (chance(0.3 + G.stats.looks / 150)) {
+        const p = addPerson({ ...c, bond: rand(55, 80) });
+        finish('💕', 'Sparks', `You and <b>${p.first}</b> talk until the lights come on. You start dating!`, { happy: 12 }, `💕 You met ${fullName(p)} at Club Neon and started dating.`, 'good');
+      } else finish('🙅', 'Not Tonight', `${c.first} smiles politely and walks off with their friends.`, { happy: -4 }, 'You got rejected at Club Neon.');
+    } },
+    { label: '🍾 Sneak into VIP', fn: () => chance(0.4)
+      ? finish('🍾', 'VIP Life', 'Free champagne. A pro athlete fist-bumps you. A pop star says your outfit is “a vibe.”', { happy: 14 }, '🍾 You partied in the VIP section at Club Neon.', 'good')
+      : finish('🚪', 'Escorted Out', 'Security grabs you by the collar and walks you right out the back door.', { happy: -6 }, 'You were kicked out of Club Neon for sneaking into VIP.') },
+  ]);
+  scene('🚪', 'Club Neon', 'There’s a line around the block, and a bouncer the size of a refrigerator is guarding the velvet rope.', [
+    { label: 'Wait in line', fn: () => chance(0.65) ? inside() : finish('⏳', 'Turned Away', '“Not tonight.” Two hours in line for nothing.', { happy: -5 }, 'You got turned away from Club Neon.') },
+    { label: 'Slip the bouncer $100', show: () => G.money >= 100, fn: () => { G.money -= 100; inside(); } },
+    { label: '⚡ Use your powers to get in', show: () => hasPower(), fn: () => { fx({ sus: 5 }); inside(); } },
+  ]);
+}
+
+// ---------- 3. Music festival ----------
+function advFestival() {
+  const cost = 250;
+  if (G.money < cost) return toast(`Tickets cost ${money(cost)}.`);
+  if (!once('adv_fest')) return;
+  G.money -= cost;
+  scene('🎪', 'Sunburst Festival', 'Three stages, a hundred thousand people, glitter everywhere. The headliner goes on in an hour. Where are you headed?', [
+    { label: '🎤 Push to the front of the main stage', fn: () => scene('🎤', 'Front Row', 'The headliner points right at you and holds out the mic during the chorus!', [
+      { label: 'Sing your heart out', fn: () => (G.stats.looks + G.stats.happy + rand(0, 60) > 110)
+        ? finish('🌟', 'Viral Moment', 'You nail it. The crowd roars. By morning the clip has five million views.', { happy: 18, looks: 2 }, '🌟 You sang with the headliner at Sunburst Festival and went viral!', 'good')
+        : finish('😬', 'Viral… For the Wrong Reasons', 'Your voice cracks on the high note. The clip still has five million views.', { happy: -6 }, 'You sang (badly) with the headliner at Sunburst Festival.') },
+      { label: 'Freeze up', fn: () => finish('🫣', 'Stage Fright', 'You stare at the mic like it’s a snake. The headliner laughs and moves on. Still a great show.', { happy: 6 }, '🎤 You saw the headliner from the front row.') },
+    ]) },
+    { label: '🤘 Jump in the mosh pit', fn: () => chance(0.65)
+      ? finish('🤘', 'Pure Chaos', 'Elbows, sweat, screaming. Best twenty minutes of your life.', { happy: 14, health: -2 }, '🤘 You survived the mosh pit at Sunburst Festival.')
+      : (G.lastInjury = 'a mosh pit', finish('🤕', 'Trampled', 'You go down hard and get stepped on. A medic patches you up.', { happy: 2, health: -rand(8, 15) }, '🤕 You got hurt in the mosh pit at Sunburst Festival.', 'bad')) },
+    { label: '🌈 Chill in the art tent', fn: () => {
+      const f = chance(0.55) ? meetFriend('at Sunburst Festival', ...nearAge(6)) : null;
+      finish('🌈', 'Good Vibes', `Hammocks, painters, and a guy playing a didgeridoo. Very relaxing.${f ? `<br><br>You end up sharing snacks with <b>${f.first}</b>. New friend!` : ''}`, { happy: 10 }, '🌈 You chilled in the art tent at Sunburst Festival.');
+    } },
+    { label: '🎫 Sneak backstage', fn: () => chance(0.35)
+      ? finish('🎸', 'Backstage Pass', 'You end up playing cards with the band. They let you keep a guitar pick from the show.', { happy: 20 }, '🎸 You snuck backstage and hung out with the band at Sunburst Festival!', 'good')
+      : finish('🚓', 'Caught', 'Security catches you climbing the fence and kicks you out of the festival.', { happy: -8 }, 'You were kicked out of Sunburst Festival.') },
+  ]);
+}
+
+// ---------- 4. Mountain hike ----------
+function advHike() {
+  if (!once('adv_hike')) return;
+  const bear = (next) => scene('🐻', 'Bear!', 'Halfway up, you round a bend and come face-to-face with a big brown bear. It stands up on its hind legs.', [
+    { label: 'Back away slowly', fn: () => chance(0.75) ? next() : (G.lastInjury = 'a bear attack', finish('🐻', 'Swiped', 'The bear swats you once and lumbers off. You limp back to the car.', { health: -rand(15, 25), happy: -8 }, '🐻 You were attacked by a bear on Granite Peak.', 'bad')) },
+    { label: 'Play dead', fn: () => chance(0.55) ? next() : (G.lastInjury = 'a bear attack', finish('🐻', 'Bad Call', 'The bear is very curious about your backpack, and you’re wearing it.', { health: -rand(10, 20) }, '🐻 Playing dead didn’t work on a bear.', 'bad')) },
+    { label: 'Run!', fn: () => chance(0.3) ? next() : (G.lastInjury = 'a bear attack', finish('🐻', 'Never Run From a Bear', 'Bears are fast. Very fast.', { health: -rand(20, 35), happy: -10 }, '🐻 You ran from a bear and it caught you.', 'bad')) },
+    { label: '⚡ Use your powers', show: hasPower, fn: () => { fx({ sus: 3 }); next(); } },
+  ]);
+  const summit = () => finish('🏔️', 'The Summit', 'You reach the top of Granite Peak. Clouds below, the whole city tiny on the horizon. You feel like you could do anything.', { health: rand(5, 9), happy: rand(10, 15) }, '🏔️ You hiked to the summit of Granite Peak.', 'good');
+  scene('🥾', 'Granite Peak', 'The trailhead map shows three routes. The air smells like pine.', [
+    { label: '🌲 Easy loop trail', fn: () => {
+      const f = chance(0.35) ? meetFriend('on a hiking trail', ...nearAge(10)) : null;
+      finish('🌲', 'Nice Walk', `Birds, wildflowers, a babbling creek. Peaceful.${f ? `<br><br>You chat with <b>${f.first}</b> the whole way down and swap numbers.` : ''}`, { health: rand(3, 5), happy: rand(4, 7) }, '🌲 You took a walk on the Granite Peak loop trail.');
+    } },
+    { label: '⛰️ The summit trail', show: () => G.age >= 10, fn: () => chance(0.4) ? bear(summit) : summit() },
+    { label: '🧭 Go off-trail', fn: () => chance(0.5)
+      ? finish('💦', 'Hidden Waterfall', 'You push through the brush and find a secret waterfall nobody knows about. You swim until sunset.', { happy: 16, health: 3 }, '💦 You discovered a hidden waterfall on Granite Peak.', 'good')
+      : scene('🌙', 'Lost', 'The sun is setting and every tree looks the same. Your phone has no signal.', [
+        { label: 'Follow the stream downhill', fn: () => chance(0.6 + G.stats.smarts / 300) ? finish('🏡', 'Found the Road', 'The stream leads you to a ranger station. Tired but safe.', { happy: 2 }, 'You got lost on Granite Peak but found your way out.') : (G.lastInjury = 'exposure', finish('🥶', 'Long Night', 'You spend a freezing night under a tree before a rescue team finds you.', { health: -rand(10, 18), happy: -8 }, '🥶 You got lost overnight on Granite Peak.', 'bad')) },
+        { label: '⚡ Fly or teleport out', show: () => hasPower() && ['flight', 'teleport'].includes(G.super.power), fn: () => finish('✨', 'Easy', 'You’re home in time for dinner.', { happy: 5 }, 'You used your powers to escape from the woods.', 'super') },
+      ]) },
+  ]);
+}
+
+// ---------- 5. Casino ----------
+function advCasino() {
+  if (G.money < 100) return toast('You need at least $100 to gamble.');
+  if (!once('adv_casino')) return;
+  const bets = () => [100, 1000, 10000, 100000].filter(b => b <= G.money);
+  const play = (game) => scene(game.emoji, game.name, `${game.desc}<br><br>How much are you betting?`, bets().map(b => ({ label: money(b), fn: () => game.run(b) }))
+    .concat([{ label: `All in (${money(G.money)})`, cls: 'danger', fn: () => game.run(G.money) }]));
+  const win = (bet, mult, msg) => finish('🤑', 'Winner!', `${msg}<br><br>You won <b>${money(bet * mult)}</b>!`, { money: bet * mult, happy: Math.min(25, 5 + Math.round(Math.log10(bet * mult) * 2)) }, `🎰 You won ${money(bet * mult)} at the Golden Vault Casino.`, 'good');
+  const lose = (bet, msg) => finish('💸', 'House Wins', `${msg}<br><br>You lost <b>${money(bet)}</b>.`, { money: -bet, happy: -Math.min(20, 3 + Math.round(Math.log10(bet) * 2)) }, `🎰 You lost ${money(bet)} at the Golden Vault Casino.`, 'bad');
+  const games = [
+    { name: 'Slot Machines', emoji: '🎰', desc: 'Lights flash, bells ring. Three cherries pays big.', run: b => {
+      const r = Math.random();
+      if (r < 0.02) win(b, 20, '🍒🍒🍒 JACKPOT! Sirens go off and everyone turns to look.');
+      else if (r < 0.3) win(b, 1, '🍋🍋🔔 A small win. You doubled your bet.');
+      else lose(b, '🍋🔔⭐ Nothing.');
+    } },
+    { name: 'Blackjack', emoji: '🃏', desc: 'Get closer to 21 than the dealer without going over.', run: b => {
+      const you = rand(12, 20), dealerShows = rand(2, 11);
+      scene('🃏', 'Your Hand', `You have <b>${you}</b>. The dealer is showing a <b>${dealerShows}</b>.`, [
+        { label: 'Hit', fn: () => { const n = you + rand(2, 11); n > 21 ? lose(b, `You drew to ${n}. Bust!`) : resolveBJ(b, n); } },
+        { label: 'Stand', fn: () => resolveBJ(b, you) },
+        { label: '🧠 Read the dealer’s mind', show: () => hasPower() && (pw('wipe') || G.super.power === 'precog' || G.super.power === 'time'), fn: () => { fx({ sus: 4 }); win(b, 1, 'You know exactly what card is coming. You play it perfectly.'); } },
+      ]);
+    } },
+    { name: 'Roulette', emoji: '🎡', desc: 'The wheel spins. Red or black doubles your money. A single number pays 35 to 1.', run: b => scene('🎡', 'Place Your Bet', 'Where do you put your chips?', [
+      { label: '🔴 Red', fn: () => chance(18 / 38) ? win(b, 1, 'The ball lands on red 23!') : lose(b, 'The ball lands on black 8.') },
+      { label: '⚫ Black', fn: () => chance(18 / 38) ? win(b, 1, 'The ball lands on black 17!') : lose(b, 'The ball lands on red 3.') },
+      { label: `🎯 Lucky number ${G.age % 36 + 1}`, fn: () => chance(1 / 38) ? win(b, 35, `The ball drops right into ${G.age % 36 + 1}. The whole table screams.`) : lose(b, 'The ball bounces past your number.') },
+    ]) },
+  ];
+  function resolveBJ(b, you) {
+    const dealer = rand(16, 23);
+    if (dealer > 21) win(b, 1, `You stand on ${you}. The dealer busts with ${dealer}!`);
+    else if (you > dealer) win(b, 1, `Your ${you} beats the dealer’s ${dealer}.`);
+    else if (you === dealer) finish('🤝', 'Push', `You and the dealer both have ${you}. You keep your bet.`, null, null);
+    else lose(b, `The dealer’s ${dealer} beats your ${you}.`);
+  }
+  scene('🎲', 'Golden Vault Casino', 'Carpet with a dizzying pattern, no clocks anywhere, and free drinks for anyone holding chips. Pick your game.', games.map(g => ({ label: `${g.emoji} ${g.name}`, fn: () => play(g) })).concat([{ label: 'Walk away' }]));
+}
+
+// ---------- 6. Beach ----------
+function advBeach() {
+  if (!once('adv_beach')) return;
+  scene('🏖️', 'Coral Cove Beach', 'Hot sand, cold waves, seagulls eyeing your snacks. Perfect beach day.', [
+    { label: '🏄 Surf', show: () => G.age >= 8, fn: () => scene('🌊', 'Big Wave', 'A huge set is rolling in. The locals are paddling out.', [
+      { label: 'Paddle for the biggest wave', fn: () => chance(G.stats.health / 150) ? finish('🏄', 'Barrel!', 'You drop in and ride the barrel all the way to the beach. A surfer yells “SHOOTS, BRAH!”', { happy: 15, health: 4, looks: 2 }, '🏄 You rode a huge wave at Coral Cove!', 'good') : (G.lastInjury = 'a surfing wipeout', finish('🌊', 'Wipeout', 'The wave eats you alive and holds you down for way too long.', { health: -rand(6, 14), happy: -3 }, '🌊 You wiped out surfing at Coral Cove.', 'bad')) },
+      { label: 'Stick to the small ones', fn: () => finish('🏄', 'Fun Session', 'Small waves, big smiles. You’re getting better.', { happy: 8, health: 3 }, '🏄 You went surfing at Coral Cove.') },
+    ]) },
+    { label: '😎 Sunbathe', fn: () => chance(0.7) ? finish('😎', 'Golden', 'You get a perfect tan and a nap to the sound of the waves.', { happy: 7, looks: rand(1, 3) }, '😎 You worked on your tan at Coral Cove.') : finish('🦞', 'Lobster', 'You fell asleep. You are now the color of a lobster.', { happy: -3, health: -3, looks: -2 }, '🦞 You got a bad sunburn at the beach.') },
+    { label: '🏐 Join a volleyball game', fn: () => {
+      const f = meetFriend('playing beach volleyball', ...nearAge(6));
+      finish('🏐', 'Game Point', `You spike the winning point. Your teammate <b>${f.first}</b> invites you to play again next week. New friend!`, { happy: 9, health: 4 }, '🏐 You played beach volleyball at Coral Cove.');
+    } },
+    { label: '🏊 Swim out past the buoys', fn: () => scene('🆘', 'Rip Current', 'Far out, you hear a scream. A swimmer is being dragged out to sea by a rip current!', [
+      { label: 'Swim over and help', fn: () => chance(G.stats.health / 130) ? finish('🦸', 'Lifesaver', 'You swim parallel to the shore, grab them, and bring them in. The crowd on the beach applauds.', { happy: 15, rep: isHero() ? 3 : 0 }, '🦸 You saved a drowning swimmer at Coral Cove!', 'good') : (G.lastInjury = 'drowning', finish('🚁', 'In Over Your Head', 'The current is too strong. A lifeguard has to rescue both of you.', { health: -rand(8, 15), happy: -4 }, 'You tried to save a swimmer but needed rescuing yourself.', 'bad')) },
+      { label: 'Wave for the lifeguard', fn: () => finish('🛟', 'Safe', 'The lifeguard gets there in time. Everyone is okay.', { happy: 2 }, 'You flagged down a lifeguard to save a drowning swimmer.') },
+      { label: '⚡ Save them with your powers', show: hasPower, fn: () => { if (isHero()) G.super.stats.saved++; finish('⚡', 'Miracle at Coral Cove', 'One second they’re drowning, the next they’re lying safely on the sand. Nobody can explain it.', { happy: 12, rep: isHero() ? 4 : 0, sus: 12 }, '⚡ You used your powers to save a drowning swimmer.', 'super'); } },
+    ]) },
+  ]);
+}
+
+// ---------- 7. Theme park ----------
+function advThemePark() {
+  const cost = 120;
+  if (G.money < cost && G.age >= 18) return toast(`Tickets cost ${money(cost)}.`);
+  if (!once('adv_park')) return;
+  if (G.age >= 18) G.money -= cost;
+  const p = partner();
+  scene('🎢', 'Thunder Mountain Park', `Churros, screaming, and the rattle of wooden coasters.${G.age < 18 ? ' Your parents paid for the tickets!' : ''} What first?`, [
+    { label: '🎢 Ride the Doom Drop', fn: () => chance(0.12)
+      ? scene('😱', 'Stuck at the Top!', 'The Doom Drop jerks to a stop at its highest point — 400 feet up. Sparks fly from the track. People are screaming.', [
+        { label: 'Stay calm and wait', fn: () => finish('🚒', 'Rescued', 'Two hours later, firefighters bring everyone down. You get a free lifetime pass as an apology.', { happy: -2 }, '😱 You were stuck at the top of the Doom Drop for two hours.') },
+        { label: '⚡ Save everyone', show: hasPower, fn: () => { if (isHero()) G.super.stats.saved += 24; finish('🦸', 'Hero of Thunder Mountain', 'You get every rider down safely before the track gives way. The news calls it a miracle.', { happy: 15, rep: isHero() ? 8 : 2, sus: 15 }, '⚡ You secretly saved 24 people stuck on a broken roller coaster.', 'super'); } },
+      ])
+      : chance(0.25) ? finish('🤢', 'Mistakes Were Made', 'Great ride. Shouldn’t have had the chili dog first.', { happy: 4, health: -2 }, '🎢 You rode the Doom Drop and immediately threw up.') : finish('🎢', 'AAAAHHH!', 'Zero gravity, 90 mph, pure adrenaline. You run straight back into line.', { happy: 12 }, '🎢 You rode the Doom Drop at Thunder Mountain Park.') },
+    { label: '🎯 Carnival games', fn: () => chance(0.35) ? finish('🧸', 'Winner!', 'You knock down all six bottles and walk away with a stuffed bear bigger than you.', { happy: 10 }, '🧸 You won a giant stuffed bear at the carnival games.') : finish('🎯', 'Rigged', 'Twenty dollars later, you’re pretty sure those bottles are glued down.', { happy: -2, money: G.age >= 12 ? -Math.min(20, G.money) : 0 }, 'You lost at the carnival games.') },
+    { label: '👻 Haunted house', fn: () => finish('👻', 'Terrified', chance(0.5) ? 'A zombie grabs your ankle. You scream so loud the actors break character to check on you.' : 'You walk through laughing at every jump scare. Too easy.', { happy: 7 }, '👻 You went through the haunted house at Thunder Mountain Park.') },
+    { label: p ? `🎡 Ferris wheel with ${p.first}` : '🎡 Ferris wheel', fn: () => { if (p) p.bond = clamp(p.bond + 12); finish('🎡', 'On Top of the World', p ? `At the very top, with the whole park lit up below, ${p.first} takes your hand.` : 'The sunset from the top is incredible.', { happy: 9 }, p ? `🎡 You rode the Ferris wheel with ${p.first}.` : '🎡 You rode the Ferris wheel at sunset.'); } },
+  ]);
+}
+
+// ---------- 8. Dojo ----------
+function advDojo() {
+  const cost = G.age >= 18 ? 100 : 0;
+  if (G.money < cost) return toast(`Classes cost ${money(cost)}.`);
+  if (!once('adv_dojo')) return;
+  G.money -= cost;
+  scene('🥋', 'Dragon Gate Dojo', 'You bow at the door. Sensei Takeda nods from across the mat. “Today, what will you learn?”', [
+    { label: '🥋 Practice forms', fn: () => finish('🥋', 'Discipline', 'Hundreds of repetitions until every move is perfect. Your mind feels clear.', { health: rand(3, 6), happy: 4, smarts: 2, control: G.super ? rand(2, 5) : 0 }, '🥋 You practiced forms at Dragon Gate Dojo.') },
+    { label: '🤼 Spar with a black belt', fn: () => {
+      const odds = G.super ? winChance(30) : 0.3 + G.stats.health / 400;
+      chance(odds) ? finish('🏆', 'Upset Victory', 'You sweep the black belt’s legs and pin them. The whole dojo goes quiet, then bursts into applause.', { happy: 12, health: 3 }, '🥋 You beat a black belt in sparring!', 'good')
+        : (G.lastInjury = 'a sparring injury', finish('🤕', 'Lesson Learned', 'You last about eight seconds. Sensei says losing is the best teacher.', { health: -rand(3, 8), happy: -2, smarts: 1 }, 'You got beaten by a black belt in sparring.'));
+    } },
+    { label: '🏆 Enter the city tournament', show: () => G.age >= 10, fn: () => scene('🏆', 'Tournament Final', 'You fight your way through three rounds. In the final you face the reigning champion, who smirks at you.', [
+      { label: 'Fight with honor', fn: () => chance(G.super ? winChance(40) : 0.25 + G.stats.health / 300) ? finish('🥇', 'Champion!', 'One perfect kick. The crowd erupts. You take home the trophy and $5,000.', { happy: 18, money: 5000 }, '🥇 You won the city martial arts tournament!', 'good') : finish('🥈', 'Runner-Up', 'You lose a close decision, but the champion bows to you with respect.', { happy: 6 }, '🥈 You placed second in the city martial arts tournament.') },
+      { label: '⚡ Secretly use your powers', show: hasPower, fn: () => finish('🥇', 'Champion (Sort Of)', 'You win in four seconds. The champion is very confused. Sensei Takeda looks at you for a long, long time.', { happy: 8, money: 5000, sus: 12 }, '🥇 You won the martial arts tournament with a little super help.', 'super') },
+    ]) },
+    { label: '🧓 Ask Sensei for a secret technique', fn: () => chance(0.3)
+      ? finish('🐉', 'The Dragon’s Breath', 'Sensei leads you to a back room and teaches you a breathing technique passed down for 800 years.', { health: 8, happy: 8, control: G.super ? 10 : 0, level: G.super ? 2 : 0 }, '🐉 Sensei Takeda taught you a secret technique.', 'good')
+      : finish('🧓', 'Not Yet', '“You are not ready.” He hands you a broom. You sweep the dojo for an hour.', { happy: -2, health: 1 }, 'Sensei Takeda said you weren’t ready for his secret technique.') },
+  ]);
+}
+
+const ADVENTURES = [
+  { emoji: '🏋️', name: 'Iron Temple Gym', sub: 'Lift, run, stretch or box', min: 12, fn: advGym },
+  { emoji: '🪩', name: 'Club Neon', sub: 'Dance, party, meet people', min: 18, fn: advClub },
+  { emoji: '🎪', name: 'Sunburst Festival', sub: 'Music festival · $250', min: 16, fn: advFestival },
+  { emoji: '🥾', name: 'Granite Peak Hike', sub: 'Trails, wildlife, adventure', min: 6, fn: advHike },
+  { emoji: '🎲', name: 'Golden Vault Casino', sub: 'Slots, blackjack, roulette', min: 21, fn: advCasino },
+  { emoji: '🏖️', name: 'Coral Cove Beach', sub: 'Surf, sun and volleyball', min: 4, fn: advBeach },
+  { emoji: '🎢', name: 'Thunder Mountain Park', sub: 'Roller coasters · $120', min: 5, fn: advThemePark },
+  { emoji: '🥋', name: 'Dragon Gate Dojo', sub: 'Martial arts training', min: 7, fn: advDojo },
+];
+
+// Making friends, and buying stuff: clothes, grooming, cars, homes and luxury items.
+
+const FRIEND_TRAITS = ['Funny', 'Sporty', 'Nerdy', 'Artsy', 'Rebellious', 'Kind', 'Rich', 'Gamer', 'Adventurous', 'Bookworm', 'Party Animal', 'Musician'];
+const TRAIT_EMOJI = { Funny: '😂', Sporty: '⚽', Nerdy: '🤓', Artsy: '🎨', Rebellious: '🤘', Kind: '🤗', Rich: '💎', Gamer: '🎮', Adventurous: '🧗', Bookworm: '📚', 'Party Animal': '🥳', Musician: '🎸' };
+
+const HANGOUTS = [
+  { id: 'school', emoji: '🏫', name: 'Around school', sub: 'Classmates your age', cond: () => ['Elementary School', 'Middle School', 'High School', 'University', 'Graduate School'].includes(G.edu.stage) },
+  { id: 'work', emoji: '💼', name: 'At work', sub: 'Coworkers', cond: () => G.job },
+  { id: 'park', emoji: '🌳', name: 'At the park', sub: 'Anyone, any age', cond: () => G.age >= 5 },
+  { id: 'cafe', emoji: '☕', name: 'At a coffee shop', sub: 'Young adults & up', cond: () => G.age >= 15 },
+  { id: 'online', emoji: '💻', name: 'Online', sub: 'Gamers & internet people', cond: () => G.age >= 12 },
+  { id: 'club', emoji: '🧩', name: 'Join a club or team', sub: 'People who share a hobby', cond: () => G.age >= 6 },
+];
+
+function actMakeFriends() {
+  if (G.prison > 0) return toast('Not much of a social scene in here.');
+  popup({ emoji: '🤝', title: 'Make Friends', text: 'Where do you want to meet new people?', choices: HANGOUTS.filter(hg => hg.cond()).map(hg => ({
+    label: `${hg.emoji} ${hg.name}`, hint: hg.sub, fn: () => meetPeople(hg),
+  })).concat([{ label: 'Never mind' }]) });
+}
+
+function meetPeople(hg) {
+  if (!once('meet_' + hg.id)) return;
+  const [lo, hi] = hg.id === 'school' ? [G.age - 1, G.age + 1] : hg.id === 'park' ? [Math.max(5, G.age - 15), G.age + 25] : [Math.max(5, G.age - 6), G.age + 8];
+  const people = [0, 1, 2].map(() => ({ ...randomPerson(null, Math.max(5, lo), Math.max(5, hi)), trait: pick(FRIEND_TRAITS) }));
+  popup({ emoji: hg.emoji, title: hg.name, text: 'You notice a few people. Who do you want to talk to? (You only have time for one.)', choices: people.map(p => ({
+    label: `${TRAIT_EMOJI[p.trait]} ${p.first} ${p.last}`, hint: `${p.trait} · age ${p.age}`,
+    fn: () => approach(p, hg),
+  })).concat([{ label: 'Go home' }]) });
+}
+
+function approach(p, hg) {
+  const openers = {
+    Funny: 'You crack a joke about the weather.', Sporty: 'You ask what team they play for.', Nerdy: 'You ask about the book they’re reading.',
+    Artsy: 'You compliment their sketchbook.', Rebellious: 'You compliment their leather jacket.', Kind: 'You help them pick up something they dropped.',
+    Rich: 'You ask where they got their very expensive sneakers.', Gamer: 'You notice their gaming hoodie and ask what they’re playing.',
+    Adventurous: 'You ask about their climbing gear.', Bookworm: 'You recommend a book.', 'Party Animal': 'You ask where the party is this weekend.', Musician: 'You ask about their guitar case.',
+  };
+  popup({ emoji: TRAIT_EMOJI[p.trait], title: p.first, text: `${openers[p.trait]}<br><br>How do you play it?`, choices: [
+    { label: '😄 Be yourself', fn: () => tryFriend(p, 0.55 + G.stats.happy / 300) },
+    { label: '😎 Try to look cool', fn: () => tryFriend(p, 0.3 + G.stats.looks / 160) },
+    { label: '🧠 Have a deep conversation', fn: () => tryFriend(p, 0.3 + G.stats.smarts / 160) },
+    { label: '🎁 Offer to buy them a snack ($10)', show: () => G.money >= 10, fn: () => { G.money -= 10; tryFriend(p, 0.75); } },
+  ] });
+}
+
+function tryFriend(p, odds) {
+  if (chance(odds)) {
+    const f = addPerson({ ...p, role: 'Friend', bond: rand(50, 75) });
+    fx({ happy: rand(4, 8) });
+    say(`🤝 You became friends with ${fullName(f)} (${f.trait.toLowerCase()}).`, 'good');
+    result(TRAIT_EMOJI[f.trait], 'New Friend!', `You and <b>${f.first}</b> hit it off! You can hang out with them from the People tab.`);
+  } else {
+    fx({ happy: -3 });
+    say(`You tried to make friends with ${p.first}, but it was awkward.`);
+    result('😬', 'Awkward…', `${p.first} gives you a weird look and finds a reason to leave.`);
+  }
+}
+
+// Extra things you can do with a friend.
+function friendChoices(p) {
+  const best = p.role === 'Best Friend';
+  const label = best ? 'best friend' : 'friend';
+  return [
+    { label: '🍕 Grab food together', show: () => G.age >= 8, fn: () => { if (!once(`food${p.id}`)) return; p.bond = clamp(p.bond + rand(4, 9)); fx({ happy: 4, money: G.age >= 16 ? -Math.min(25, G.money) : 0 }); say(`🍕 You grabbed food with your ${label} ${p.first}.`); toast(`${p.first} had a great time`); } },
+    { label: '🎬 See a movie', show: () => G.age >= 6, fn: () => {
+      if (!once(`movie${p.id}`)) return;
+      const film = pick(['a superhero blockbuster', 'a horror movie', 'a romantic comedy', 'an animated movie', 'a sci-fi epic']);
+      p.bond = clamp(p.bond + rand(3, 8)); fx({ happy: 5, money: G.age >= 16 ? -Math.min(15, G.money) : 0 });
+      say(`🎬 You saw ${film} with ${p.first}.`); toast(`You saw ${film}`);
+    } },
+    { label: '🎮 Play video games', show: () => p.trait === 'Gamer' || p.age < 30, fn: () => {
+      if (!once(`games${p.id}`)) return;
+      const won = chance(0.5); p.bond = clamp(p.bond + rand(2, 6)); fx({ happy: won ? 5 : 2 });
+      say(`🎮 You played video games with ${p.first}${won ? ' and won every round' : ' and got destroyed'}.`); toast(won ? 'You won!' : 'You lost…');
+    } },
+    { label: '🧗 Go on an adventure together', show: () => G.age >= 12, fn: () => {
+      if (!once(`adv${p.id}`)) return;
+      const trip = pick(['went camping', 'went cliff jumping', 'took a spontaneous road trip', 'explored an abandoned mall', 'went to an escape room']);
+      p.bond = clamp(p.bond + rand(6, 12)); fx({ happy: rand(6, 10) });
+      say(`🧗 You and ${p.first} ${trip}.`, 'good'); result('🧗', 'Adventure!', `You and ${p.first} ${trip}. You’ll be talking about it for years.`);
+    } },
+    { label: '💸 Ask to borrow money', show: () => p.trait === 'Rich' && G.age >= 14, fn: () => {
+      if (!once(`borrow${p.id}`)) return;
+      if (chance(p.bond / 120)) { const amt = rand(5, 50) * 100; G.money += amt; p.bond = clamp(p.bond - 5); say(`💸 ${p.first} lent you ${money(amt)}.`); toast(`+${money(amt)}`); }
+      else { p.bond = clamp(p.bond - 10); toast(`${p.first} said no. Awkward.`); }
+    } },
+    { label: '⭐ Ask to be best friends', show: () => !best && p.bond >= 75, fn: () => {
+      if (chance(p.bond / 100)) { p.role = 'Best Friend'; p.bond = clamp(p.bond + 10); fx({ happy: 10 }); say(`⭐ ${p.first} is now your best friend!`, 'good'); result('⭐', 'Best Friends!', `${p.first} says yes. Friendship bracelets are being made as we speak.`); }
+      else { p.bond = clamp(p.bond - 5); result('😅', 'Not Yet', `${p.first} says they like you a lot, but “best friend” is a big title.`); }
+    } },
+    { label: '👋 End the friendship', fn: () => { p.role = 'Former Friend'; fx({ happy: -3 }); say(`👋 You ended your friendship with ${fullName(p)}.`); } },
+  ];
+}
+
+// ---------- shopping ----------
+// kind: wear (one-time looks boost, stays in your wardrobe), care (repeatable service), car, home, luxury
+const SHOP = [
+  // Clothes & style
+  { id: 'thrift', kind: 'wear', emoji: '👕', name: 'Thrift Store Outfit', cost: 60, looks: 2, min: 5 },
+  { id: 'sneakers', kind: 'wear', emoji: '👟', name: 'Fresh Sneakers', cost: 180, looks: 3, min: 8 },
+  { id: 'streetwear', kind: 'wear', emoji: '🧢', name: 'Streetwear Drop', cost: 450, looks: 4, happy: 3, min: 12 },
+  { id: 'leather', kind: 'wear', emoji: '🧥', name: 'Leather Jacket', cost: 900, looks: 5, min: 14 },
+  { id: 'formal', kind: 'wear', emoji: '🤵', name: 'Tailored Suit / Gown', cost: 2500, looks: 7, min: 16 },
+  { id: 'watch', kind: 'wear', emoji: '⌚', name: 'Luxury Watch', cost: 18000, looks: 5, happy: 4, min: 18 },
+  { id: 'jewelry', kind: 'wear', emoji: '💍', name: 'Diamond Jewelry', cost: 45000, looks: 7, happy: 5, min: 18 },
+  { id: 'couture', kind: 'wear', emoji: '👗', name: 'Haute Couture Collection', cost: 120000, looks: 12, happy: 6, min: 18 },
+  // Grooming (once per year)
+  { id: 'haircut', kind: 'care', emoji: '💇', name: 'Fresh Haircut', cost: 45, looks: [2, 4], min: 5 },
+  { id: 'skincare', kind: 'care', emoji: '🧴', name: 'Skincare Routine', cost: 150, looks: [1, 3], health: 1, min: 12 },
+  { id: 'spa', kind: 'care', emoji: '🧖', name: 'Spa Day', cost: 450, looks: [2, 4], happy: [6, 10], min: 16 },
+  { id: 'teeth', kind: 'care', emoji: '😁', name: 'Teeth Whitening', cost: 900, looks: [3, 5], min: 16 },
+  { id: 'trainer', kind: 'care', emoji: '🏋️', name: 'Personal Trainer (1 year)', cost: 4000, looks: [3, 6], health: [5, 10], min: 16 },
+  { id: 'surgery', kind: 'care', emoji: '💉', name: 'Cosmetic Surgery', cost: 12000, looks: [10, 20], risky: true, min: 18 },
+  // Cars
+  { id: 'bike', kind: 'car', emoji: '🚲', name: 'Mountain Bike', cost: 600, happy: 4, min: 8 },
+  { id: 'scooter', kind: 'car', emoji: '🛵', name: 'Moped', cost: 2500, happy: 4, min: 15 },
+  { id: 'beater', kind: 'car', emoji: '🚗', name: 'Used Hatchback', cost: 5000, happy: 5, min: 16 },
+  { id: 'sedan', kind: 'car', emoji: '🚙', name: 'New Sedan', cost: 28000, happy: 7, min: 16 },
+  { id: 'truck', kind: 'car', emoji: '🛻', name: 'Pickup Truck', cost: 48000, happy: 8, min: 16 },
+  { id: 'ev', kind: 'car', emoji: '🔋', name: 'Electric Sports Sedan', cost: 90000, happy: 10, looks: 2, min: 16 },
+  { id: 'sports', kind: 'car', emoji: '🏎️', name: 'Italian Sports Car', cost: 280000, happy: 14, looks: 4, min: 18 },
+  { id: 'hyper', kind: 'car', emoji: '🚀', name: 'Hypercar', cost: 2500000, happy: 18, looks: 6, min: 18 },
+  // Homes
+  { id: 'rent', kind: 'rent', emoji: '🏢', name: 'Rent an Apartment', cost: 1400, happy: 6, min: 18 },
+  { id: 'condo', kind: 'home', emoji: '🏬', name: 'Downtown Condo', cost: 220000, happy: 10, min: 18 },
+  { id: 'house', kind: 'home', emoji: '🏡', name: 'Suburban House', cost: 450000, happy: 12, min: 18 },
+  { id: 'loft', kind: 'home', emoji: '🏙️', name: 'Penthouse Loft', cost: 1800000, happy: 16, looks: 2, min: 18 },
+  { id: 'mansion', kind: 'home', emoji: '🏰', name: 'Hilltop Mansion', cost: 7500000, happy: 20, looks: 3, min: 18 },
+  { id: 'island', kind: 'home', emoji: '🏝️', name: 'Private Island', cost: 45000000, happy: 25, min: 18 },
+  // Luxury & fun
+  { id: 'console', kind: 'luxury', emoji: '🎮', name: 'Gaming Console', cost: 500, happy: 6, min: 6 },
+  { id: 'phone', kind: 'luxury', emoji: '📱', name: 'Latest Smartphone', cost: 1200, happy: 4, looks: 1, min: 10 },
+  { id: 'guitar', kind: 'luxury', emoji: '🎸', name: 'Electric Guitar', cost: 1500, happy: 5, smarts: 2, min: 10 },
+  { id: 'dog', kind: 'luxury', emoji: '🐕', name: 'Adopt a Dog', cost: 400, happy: 10, health: 2, min: 8 },
+  { id: 'boat', kind: 'luxury', emoji: '🚤', name: 'Speedboat', cost: 120000, happy: 12, min: 18 },
+  { id: 'art', kind: 'luxury', emoji: '🖼️', name: 'Famous Painting', cost: 900000, happy: 8, smarts: 2, min: 18 },
+  { id: 'yacht', kind: 'luxury', emoji: '🛥️', name: 'Superyacht', cost: 15000000, happy: 20, looks: 3, min: 18 },
+  { id: 'jet', kind: 'luxury', emoji: '🛩️', name: 'Private Jet', cost: 40000000, happy: 22, min: 18 },
+];
+const RESALE = { wear: 0.1, car: 0.85, home: 1, luxury: 0.5 };
+const rnd = v => Array.isArray(v) ? rand(v[0], v[1]) : (v || 0);
+
+function owned(id) { return (G.assets || []).filter(a => a.id === id); }
+function assetValue() { return (G.assets || []).reduce((t, a) => t + (a.kind === 'wear' ? 0 : a.value), 0); }
+function netWorth() { return G.money - G.debt + assetValue(); }
+
+function buyItem(it) {
+  if (G.age < it.min) return toast(`You need to be ${it.min} for that.`);
+  if (G.prison > 0) return toast('You can’t go shopping from prison.');
+  if (it.kind === 'rent') return rentApartment();
+  if (G.money < it.cost) return toast(`You need ${money(it.cost)}.`);
+  if (it.kind === 'care') {
+    if (!once('care_' + it.id)) return;
+    G.money -= it.cost;
+    if (it.risky && chance(0.15)) {
+      fx({ looks: -rand(10, 20), happy: -15 });
+      say(`💉 Your ${it.name.toLowerCase()} was botched.`, 'bad');
+      return result('😱', 'Botched!', 'The surgeon made a terrible mistake. You look worse than before.');
+    }
+    const eff = { looks: rnd(it.looks), happy: rnd(it.happy), health: rnd(it.health) };
+    fx(eff);
+    say(`${it.emoji} You got a ${it.name.toLowerCase()}.`);
+    return toast(`${it.name}: Looks +${eff.looks}`);
+  }
+  if (it.kind === 'wear' && owned(it.id).length) return toast('You already own that.');
+  G.money -= it.cost;
+  G.assets.push({ id: it.id, kind: it.kind, name: it.name, emoji: it.emoji, value: it.cost, paid: it.cost, age: G.age });
+  fx({ looks: rnd(it.looks), happy: rnd(it.happy), health: rnd(it.health), smarts: rnd(it.smarts) });
+  if (it.kind === 'home' && G.renting) { G.renting = false; say('You moved out of your rented apartment.'); }
+  say(`${it.emoji} You bought a ${it.name} for ${money(it.cost)}.`, 'good');
+  result(it.emoji, 'Purchased!', `You bought a <b>${it.name}</b> for ${money(it.cost)}.${it.kind === 'home' ? '<br><br>Homes can grow in value over time.' : it.kind === 'car' ? '<br><br>Cars lose value every year and cost money to keep up.' : ''}`);
+}
+
+function rentApartment() {
+  if (G.renting) {
+    G.renting = false; say('🏢 You moved out of your rented apartment.'); return toast('You moved out.');
+  }
+  G.renting = true; fx({ happy: 6 });
+  say('🏢 You rented your own apartment ($1,400/month).', 'good');
+  result('🏢', 'Your Own Place', 'You signed a lease on a one-bedroom apartment. Rent is $16,800 a year.');
+}
+
+function sellAsset(a) {
+  const amt = Math.round(a.value * (RESALE[a.kind] ?? 0.5));
+  popup({ emoji: a.emoji, title: `Sell ${a.name}?`, text: `You’d get <b>${money(amt)}</b> for it.`, choices: [
+    { label: `Sell for ${money(amt)}`, fn: () => { G.assets = G.assets.filter(x => x !== a); G.money += amt; fx({ happy: -2 }); say(`You sold your ${a.name} for ${money(amt)}.`); } },
+    { label: 'Keep it' },
+  ] });
+}
+
+// Yearly: depreciation, appreciation, upkeep, rent, and a little joy from nice things.
+function assetsTick() {
+  if (!G.assets) return;
+  let upkeep = 0, joy = 0;
+  G.assets.forEach(a => {
+    if (a.kind === 'car') { a.value = Math.round(a.value * 0.86); upkeep += Math.round(a.paid * 0.03); joy = Math.max(joy, 1); }
+    else if (a.kind === 'home') { a.value = Math.round(a.value * (1 + rand(-3, 7) / 100)); upkeep += Math.round(a.value * 0.012); joy = Math.max(joy, 3); }
+    else if (a.kind === 'luxury') { a.value = Math.round(a.value * (a.id === 'art' ? 1 + rand(-5, 12) / 100 : 0.9)); upkeep += a.paid >= 100000 ? Math.round(a.paid * 0.05) : 0; }
+  });
+  if (G.renting && G.prison === 0) upkeep += 16800;
+  if (G.prison === 0) G.money -= upkeep;
+  if (joy) fx({ happy: rand(0, joy) });
+  if (G.money < 0) {
+    G.debt += -G.money; G.money = 0;
+    say(`💳 You couldn’t cover your bills and went into debt (${money(G.debt)}).`, 'bad');
+    fx({ happy: -5 });
+  }
+}
+
+function livingText() {
+  const homes = G.assets.filter(x => x.kind === 'home').sort((x, y) => y.value - x.value);
+  if (homes.length) return homes[0].name + (homes.length > 1 ? ` (+${homes.length - 1} other propert${homes.length === 2 ? 'y' : 'ies'})` : '');
+  return G.renting ? 'Rented apartment' : G.age < 18 ? 'With your family' : 'With your parents';
+}
+
+function shopPanel() {
+  const a = G.age;
+  const out = h('div', {});
+  out.append(h('div', { class: 'info' },
+    h('div', {}, '💰 Cash: ', h('b', {}, money(G.money))),
+    h('div', {}, '🏦 Net worth: ', h('b', {}, money(netWorth()))),
+    h('div', {}, '🏠 Living: ', h('b', {}, livingText()))));
+  if (G.prison > 0) { out.append(h('p', { class: 'muted' }, 'You can’t shop while you’re in prison.')); return out; }
+  const mine = G.assets.filter(x => x.kind !== 'wear');
+  if (mine.length) out.append(section('Your Stuff', mine.map(x => row(x.emoji, x.name, `Worth ${money(x.value * (RESALE[x.kind] ?? 0.5))} · tap to sell`, () => sellAsset(x)))));
+  const wardrobe = G.assets.filter(x => x.kind === 'wear');
+  if (wardrobe.length) out.append(h('div', { class: 'wardrobe' }, '👚 Wardrobe: ', wardrobe.map(x => x.emoji).join(' ')));
+  const item = it => {
+    const has = it.kind === 'wear' && owned(it.id).length;
+    const boost = [it.looks && `✨ +${Array.isArray(it.looks) ? it.looks.join('–') : it.looks} looks`, it.happy && `😊 +${Array.isArray(it.happy) ? it.happy.join('–') : it.happy}`, it.health && '❤️ health'].filter(Boolean).join(' · ');
+    return row(it.emoji, it.name, has ? 'Owned' : `${money(it.cost)}${it.kind === 'rent' ? '/month' : ''}${boost ? ' · ' + boost : ''}${it.risky ? ' · risky' : ''}`,
+      () => buyItem(it), { disabled: a < it.min || has, why: has ? 'You already own that.' : `You need to be ${it.min}.` });
+  };
+  const list = k => SHOP.filter(it => it.kind === k && a >= Math.min(it.min, 18) - 4);
+  out.append(section('Clothes & Style', list('wear').map(item)));
+  out.append(section('Grooming & Looks', list('care').map(item)));
+  out.append(section('Vehicles', list('car').map(item)));
+  if (a >= 16) out.append(section('Homes', SHOP.filter(it => it.kind === 'rent' || it.kind === 'home').map(it => it.kind === 'rent'
+    ? row(it.emoji, G.renting ? 'Move out of your apartment' : it.name, G.renting ? 'Stop paying rent' : '$1,400/month · your own place', () => buyItem(it), { disabled: a < 18, why: 'You need to be 18.' })
+    : item(it))));
+  out.append(section('Luxury & Fun', list('luxury').map(item)));
+  return out;
 }
 
 // Rendering, panels, popups, start & death screens.
@@ -2416,8 +2923,8 @@ function openSheet(name) {
 function closeSheet() { currentSheet = null; $('#sheet').hidden = true; }
 
 function renderSheet() {
-  const titles = { career: '💼 Occupation', people: '❤️ Relationships', activities: '🎯 Activities', powers: '⚡ Powers' };
-  const body = { career: careerPanel, people: peoplePanel, activities: activitiesPanel, powers: powersPanel }[currentSheet]();
+  const titles = { career: '💼 Occupation', people: '❤️ Relationships', activities: '🎯 Activities', powers: '⚡ Powers', shop: '🛍️ Shopping' };
+  const body = { career: careerPanel, people: peoplePanel, activities: activitiesPanel, powers: powersPanel, shop: shopPanel }[currentSheet]();
   const scroller = $('#sheet-body');
   const top = scroller.scrollTop;
   $('#sheet-title').textContent = titles[currentSheet];
@@ -2474,14 +2981,15 @@ function careerPanel() {
 }
 
 function peoplePanel() {
-  const order = ['Parent', 'Sibling', 'Spouse', 'Partner', 'Child', 'Friend', 'Ex'];
+  const order = ['Parent', 'Sibling', 'Spouse', 'Partner', 'Child', 'Best Friend', 'Friend', 'Ex'];
   const groups = order.map(r => [r, G.people.filter(p => p.role === r)]).filter(([, l]) => l.length);
-  if (!groups.length) return h('p', { class: 'muted' }, 'You don’t have anyone in your life right now.');
-  const names = { Parent: 'Parents', Sibling: 'Siblings', Spouse: 'Spouse', Partner: 'Partner', Child: 'Children', Friend: 'Friends', Ex: 'Exes' };
-  return h('div', {}, groups.map(([r, list]) => section(names[r],
+  const names = { Parent: 'Parents', Sibling: 'Siblings', Spouse: 'Spouse', Partner: 'Partner', Child: 'Children', 'Best Friend': 'Best Friends', Friend: 'Friends', Ex: 'Exes' };
+  const top = G.age >= 5 ? section('Social', row('🤝', 'Make new friends', 'School, work, the park, online and more', actMakeFriends)) : null;
+  return h('div', {}, top, groups.length ? groups.map(([r, list]) => section(names[r],
     list.sort((a, b) => b.alive - a.alive).map(p => row(personEmoji(p), fullName(p),
-      p.alive ? `${roleLabel(p)} · Age ${p.age} · ❤️ ${p.bond}%${G.super && !G.super.exposed && p.knows ? ' · 🤫 knows' : ''}` : `${roleLabel(p)} · Deceased`,
-      () => personActions(p), { disabled: !p.alive, why: `${p.first} has passed away.` })))));
+      p.alive ? `${roleLabel(p)} · Age ${p.age}${p.trait ? ` · ${TRAIT_EMOJI[p.trait]} ${p.trait}` : ''} · ❤️ ${p.bond}%${G.super && !G.super.exposed && p.knows ? ' · 🤫 knows' : ''}` : `${roleLabel(p)} · Deceased`,
+      () => personActions(p), { disabled: !p.alive, why: `${p.first} has passed away.` }))))
+    : h('p', { class: 'muted' }, 'You don’t have anyone in your life right now.'));
 }
 
 function activitiesPanel() {
@@ -2493,18 +3001,22 @@ function activitiesPanel() {
       row('🔓', 'Attempt a prison break', G.super ? `Powers help · ~${Math.round(clamp(0.08 + pw('escape') / 100 + G.super.level / 300, 0, 1) * 100)}% chance` : 'Very risky', actBreakOut, { cls: 'danger' })));
   }
   if (a < 3) return h('p', { class: 'muted' }, 'You’re a baby. Your only activity is napping. Tap Age to grow up!');
+  const adv = ADVENTURES.filter(x => a >= x.min);
   return h('div', {},
+    section('Shopping', row('🛍️', 'Go shopping', 'Clothes, cars, homes and more', () => openSheet('shop'), { cls: 'feature' })),
+    adv.length ? section('Adventures', adv.map(x => row(x.emoji, x.name, G.used['adv_' + advKey(x)] ? 'Done this year' : x.sub, x.fn, { cls: G.used['adv_' + advKey(x)] ? 'done' : '' }))) : null,
     section('Mind & Body',
-      a >= 12 ? row('🏋️', 'Gym', 'Health & looks', actGym) : null,
       row('📚', 'Library', 'Smarts', actLibrary),
       a >= 8 ? row('🧘', 'Meditate', G.super ? 'Happiness & power control' : 'Happiness', actMeditate) : null,
       row('🩺', 'Doctor', a < 18 ? 'Free for kids' : '$800', actDoctor)),
     section('Social',
+      a >= 5 ? row('🤝', 'Make friends', 'Meet new people', actMakeFriends) : null,
       a >= 16 ? row('🍸', 'Night out', 'Happiness', actNightOut) : null,
       a >= 16 && !partner() ? row('💘', 'Find love', 'Meet someone new', actFindLove) : null,
       a >= 18 ? row('✈️', 'Vacation', '$3,500', actVacation) : null),
     a >= 18 ? section('Money', row('🎰', 'Lottery ticket', '$10 · tap as much as you want', actLottery)) : null);
 }
+function advKey(x) { return { advGym: 'gym', advClub: 'club', advFestival: 'fest', advHike: 'hike', advCasino: 'casino', advBeach: 'beach', advThemePark: 'park', advDojo: 'dojo' }[x.fn.name]; }
 
 function powersPanel() {
   const s = G.super;
@@ -2625,7 +3137,7 @@ function showDeath() {
   closeSheet();
   const s = G.super;
   const hero = s && s.alignment === 'hero';
-  const net = G.money - G.debt;
+  const net = netWorth();
   let legacy = 'You never discovered your powers.';
   if (s && s.alignment) {
     legacy = hero
@@ -2657,6 +3169,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (currentSheet === name) closeSheet(); else openSheet(name);
   }));
   $('#sheet-close').addEventListener('click', closeSheet);
+  $('#money').addEventListener('click', () => { if (currentSheet === 'shop') closeSheet(); else openSheet('shop'); });
   $('#menu-btn').addEventListener('click', () => popup({
     emoji: '⚙️', title: 'Menu', text: 'Your life saves automatically.',
     choices: [

@@ -148,8 +148,8 @@ function openSheet(name) {
 function closeSheet() { currentSheet = null; $('#sheet').hidden = true; }
 
 function renderSheet() {
-  const titles = { career: '💼 Occupation', people: '❤️ Relationships', activities: '🎯 Activities', powers: '⚡ Powers' };
-  const body = { career: careerPanel, people: peoplePanel, activities: activitiesPanel, powers: powersPanel }[currentSheet]();
+  const titles = { career: '💼 Occupation', people: '❤️ Relationships', activities: '🎯 Activities', powers: '⚡ Powers', shop: '🛍️ Shopping' };
+  const body = { career: careerPanel, people: peoplePanel, activities: activitiesPanel, powers: powersPanel, shop: shopPanel }[currentSheet]();
   const scroller = $('#sheet-body');
   const top = scroller.scrollTop;
   $('#sheet-title').textContent = titles[currentSheet];
@@ -206,14 +206,15 @@ function careerPanel() {
 }
 
 function peoplePanel() {
-  const order = ['Parent', 'Sibling', 'Spouse', 'Partner', 'Child', 'Friend', 'Ex'];
+  const order = ['Parent', 'Sibling', 'Spouse', 'Partner', 'Child', 'Best Friend', 'Friend', 'Ex'];
   const groups = order.map(r => [r, G.people.filter(p => p.role === r)]).filter(([, l]) => l.length);
-  if (!groups.length) return h('p', { class: 'muted' }, 'You don’t have anyone in your life right now.');
-  const names = { Parent: 'Parents', Sibling: 'Siblings', Spouse: 'Spouse', Partner: 'Partner', Child: 'Children', Friend: 'Friends', Ex: 'Exes' };
-  return h('div', {}, groups.map(([r, list]) => section(names[r],
+  const names = { Parent: 'Parents', Sibling: 'Siblings', Spouse: 'Spouse', Partner: 'Partner', Child: 'Children', 'Best Friend': 'Best Friends', Friend: 'Friends', Ex: 'Exes' };
+  const top = G.age >= 5 ? section('Social', row('🤝', 'Make new friends', 'School, work, the park, online and more', actMakeFriends)) : null;
+  return h('div', {}, top, groups.length ? groups.map(([r, list]) => section(names[r],
     list.sort((a, b) => b.alive - a.alive).map(p => row(personEmoji(p), fullName(p),
-      p.alive ? `${roleLabel(p)} · Age ${p.age} · ❤️ ${p.bond}%${G.super && !G.super.exposed && p.knows ? ' · 🤫 knows' : ''}` : `${roleLabel(p)} · Deceased`,
-      () => personActions(p), { disabled: !p.alive, why: `${p.first} has passed away.` })))));
+      p.alive ? `${roleLabel(p)} · Age ${p.age}${p.trait ? ` · ${TRAIT_EMOJI[p.trait]} ${p.trait}` : ''} · ❤️ ${p.bond}%${G.super && !G.super.exposed && p.knows ? ' · 🤫 knows' : ''}` : `${roleLabel(p)} · Deceased`,
+      () => personActions(p), { disabled: !p.alive, why: `${p.first} has passed away.` }))))
+    : h('p', { class: 'muted' }, 'You don’t have anyone in your life right now.'));
 }
 
 function activitiesPanel() {
@@ -225,18 +226,22 @@ function activitiesPanel() {
       row('🔓', 'Attempt a prison break', G.super ? `Powers help · ~${Math.round(clamp(0.08 + pw('escape') / 100 + G.super.level / 300, 0, 1) * 100)}% chance` : 'Very risky', actBreakOut, { cls: 'danger' })));
   }
   if (a < 3) return h('p', { class: 'muted' }, 'You’re a baby. Your only activity is napping. Tap Age to grow up!');
+  const adv = ADVENTURES.filter(x => a >= x.min);
   return h('div', {},
+    section('Shopping', row('🛍️', 'Go shopping', 'Clothes, cars, homes and more', () => openSheet('shop'), { cls: 'feature' })),
+    adv.length ? section('Adventures', adv.map(x => row(x.emoji, x.name, G.used['adv_' + advKey(x)] ? 'Done this year' : x.sub, x.fn, { cls: G.used['adv_' + advKey(x)] ? 'done' : '' }))) : null,
     section('Mind & Body',
-      a >= 12 ? row('🏋️', 'Gym', 'Health & looks', actGym) : null,
       row('📚', 'Library', 'Smarts', actLibrary),
       a >= 8 ? row('🧘', 'Meditate', G.super ? 'Happiness & power control' : 'Happiness', actMeditate) : null,
       row('🩺', 'Doctor', a < 18 ? 'Free for kids' : '$800', actDoctor)),
     section('Social',
+      a >= 5 ? row('🤝', 'Make friends', 'Meet new people', actMakeFriends) : null,
       a >= 16 ? row('🍸', 'Night out', 'Happiness', actNightOut) : null,
       a >= 16 && !partner() ? row('💘', 'Find love', 'Meet someone new', actFindLove) : null,
       a >= 18 ? row('✈️', 'Vacation', '$3,500', actVacation) : null),
     a >= 18 ? section('Money', row('🎰', 'Lottery ticket', '$10 · tap as much as you want', actLottery)) : null);
 }
+function advKey(x) { return { advGym: 'gym', advClub: 'club', advFestival: 'fest', advHike: 'hike', advCasino: 'casino', advBeach: 'beach', advThemePark: 'park', advDojo: 'dojo' }[x.fn.name]; }
 
 function powersPanel() {
   const s = G.super;
@@ -357,7 +362,7 @@ function showDeath() {
   closeSheet();
   const s = G.super;
   const hero = s && s.alignment === 'hero';
-  const net = G.money - G.debt;
+  const net = netWorth();
   let legacy = 'You never discovered your powers.';
   if (s && s.alignment) {
     legacy = hero
@@ -389,6 +394,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (currentSheet === name) closeSheet(); else openSheet(name);
   }));
   $('#sheet-close').addEventListener('click', closeSheet);
+  $('#money').addEventListener('click', () => { if (currentSheet === 'shop') closeSheet(); else openSheet('shop'); });
   $('#menu-btn').addEventListener('click', () => popup({
     emoji: '⚙️', title: 'Menu', text: 'Your life saves automatically.',
     choices: [

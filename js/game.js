@@ -85,7 +85,7 @@ function newLife(opts = {}) {
   G = {
     v: 1, alive: true, first, last, gender, city: opts.city || pick(CITIES), age: 0,
     stats: { happy: rand(60, 100), health: rand(75, 100), smarts: rand(10, 90), looks: rand(10, 100) },
-    money: 0, debt: 0,
+    money: 0, debt: 0, assets: [], renting: false,
     edu: { level: 0, stage: '', years: 0, dropped: false },
     job: null, retiredJob: false, pension: 0,
     people: [], nextId: 0, used: {}, log: [], flags: {},
@@ -120,6 +120,7 @@ function ageUp() {
   peopleTick();
   if (G.prison > 0) prisonTick(); else { schoolTick(); jobTick(); }
   moneyTick();
+  assetsTick();
   if (G.super) superYearly();
 
   if (naturalDeath()) return;
@@ -290,6 +291,7 @@ function load() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     G = JSON.parse(raw);
+    if (G) { G.assets = G.assets || []; G.renting = !!G.renting; }
     return !!(G && G.alive);
   } catch (e) { return false; }
 }
