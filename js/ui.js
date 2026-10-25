@@ -24,7 +24,8 @@ function popup(spec) { Q.push(spec); if (!current) nextModal(); }
 
 function nextModal() {
   const root = $('#modal');
-  if (!G || !G.alive) Q.length = 0;
+  // After death only screens meant for it (your story, the Hall of Legends) may open.
+  if (!G || !G.alive) { const keep = Q.filter(x => x.always); Q.length = 0; Q.push(...keep); }
   if (!Q.length && G && G.alive) { checkMoves(); }
   if (!Q.length) {
     current = null;
@@ -57,6 +58,7 @@ function nextModal() {
   root.replaceChildren(card);
   if (root.hidden) sfx('pop');
   root.hidden = false;
+  if (spec.after) spec.after(card);
   if (input) setTimeout(() => input.focus(), 50);
 }
 
@@ -88,27 +90,38 @@ function occupation() {
 }
 function avatar() {
   const m = G.gender === 'm';
-  if (G.age < 3) return '👶';
-  if (G.age < 13) return m ? '👦' : '👧';
-  if (G.age < 60) return m ? '👨' : '👩';
-  return m ? '👴' : '👵';
+  const k = G.skin || '';
+  if (G.age < 3) return '👶' + k;
+  if (G.age < 13) return (m ? '👦' : '👧') + k;
+  if (G.age < 60) return (m ? '👨' : '👩') + k;
+  return (m ? '👴' : '👵') + k;
 }
+let animatedAge = null;
 
 function render() {
   if (!G) return;
   const s = G.super;
   $('#avatar').textContent = avatar();
   $('#name').textContent = `${G.first} ${G.last}`;
-  $('#sub').innerHTML = `Age ${G.age} · ${esc(occupation())}` + (s ? ` · <span class="badge ${s.alignment || ''}">${s.alignment === 'hero' ? '🦸' : '🦹'} ${esc(s.alias || '???')}</span>` : '');
+  $('#sub').innerHTML = `Age ${G.age} · ${esc(occupation())}` + (s ? ` · <span class="badge ${s.alignment || ''}">${s.alignment === 'hero' ? '🦸' : '🦹'}${G.skin || ''} ${esc(s.alias || '???')}</span>` : '');
+  updateAtmosphere();
+  const unread = unreadCount();
+  $('#phone-badge').textContent = unread || '';
+  $('#phone-badge').hidden = !unread;
   $('#money').textContent = money(G.money);
   $('#money').classList.toggle('neg', G.money < 0);
 
   // log
   const log = $('#log');
   const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
-  log.replaceChildren(...G.log.map(y => h('div', { class: 'year' },
-    h('div', { class: 'year-age' }, y.age === 0 ? 'Born' : `Age ${y.age}`),
-    y.lines.map(l => h('p', { class: l.c || '', html: l.t })))));
+  const fresh = animatedAge !== G.age;
+  animatedAge = G.age;
+  log.replaceChildren(...G.log.map((y, yi) => {
+    const isNew = fresh && yi === G.log.length - 1;
+    return h('div', { class: `year ${isNew ? 'fresh' : ''}` },
+      h('div', { class: 'year-age' }, y.age === 0 ? 'Born' : `Age ${y.age}`),
+      y.lines.map((l, i) => h('p', { class: l.c || '', html: l.t, style: isNew ? `animation-delay:${0.12 + i * 0.14}s` : null })));
+  }));
   if (atBottom || renderScrollPending) { log.scrollTop = log.scrollHeight; renderScrollPending = false; }
 
   // stats
@@ -155,8 +168,8 @@ function openSheet(name) {
 function closeSheet() { currentSheet = null; $('#sheet').hidden = true; }
 
 function renderSheet() {
-  const titles = { career: '💼 Occupation', people: '❤️ Relationships', activities: '🎯 Activities', powers: '⚡ Powers', shop: '🛍️ Shopping', profile: '🪪 Profile' };
-  const body = { career: careerPanel, people: peoplePanel, activities: activitiesPanel, powers: powersPanel, shop: shopPanel, profile: profilePanel }[currentSheet]();
+  const titles = { career: '💼 Occupation', people: '❤️ Relationships', activities: '🎯 Activities', powers: '⚡ Powers', shop: '🛍️ Shopping', profile: '🪪 Profile', phone: '📱 Messages' };
+  const body = { career: careerPanel, people: peoplePanel, activities: activitiesPanel, powers: powersPanel, shop: shopPanel, profile: profilePanel, phone: phonePanel }[currentSheet]();
   const scroller = $('#sheet-body');
   const top = scroller.scrollTop;
   $('#sheet-title').textContent = titles[currentSheet];
@@ -221,7 +234,7 @@ function peoplePanel() {
     G.age >= 5 ? row('🐾', 'Adopt a pet', 'Visit the animal shelter', actAdoptPet) : null);
   return h('div', {}, top, pets, groups.length ? groups.map(([r, list]) => section(names[r],
     list.sort((a, b) => b.alive - a.alive).map(p => row(personEmoji(p), fullName(p),
-      p.alive ? `${roleLabel(p)} · Age ${p.age}${p.trait ? ` · ${TRAIT_EMOJI[p.trait]} ${p.trait}` : ''} · ❤️ ${p.bond}%${G.super && !G.super.exposed && p.knows ? ' · 🤫 knows' : ''}` : `${roleLabel(p)} · Deceased`,
+      p.alive ? `${roleLabel(p)}${p.superAlias ? ` · 🦸 ${p.superAlias}` : ''} · Age ${p.age}${p.trait ? ` · ${TRAIT_EMOJI[p.trait]} ${p.trait}` : ''} · ❤️ ${p.bond}%${G.super && !G.super.exposed && p.knows ? ' · 🤫 knows' : ''}` : `${roleLabel(p)} · Deceased`,
       () => personActions(p), { disabled: !p.alive, why: `${p.first} has passed away.` }))))
     : h('p', { class: 'muted' }, 'You don’t have anyone in your life right now.'));
 }
@@ -237,6 +250,7 @@ function activitiesPanel() {
   if (a < 3) return h('p', { class: 'muted' }, 'You’re a baby. Your only activity is napping. Tap Age to grow up!');
   const adv = ADVENTURES.filter(x => a >= x.min);
   return h('div', {},
+    activeQuests().length ? section('📖 Your Stories', questRows()) : null,
     section('Shopping', row('🛍️', 'Go shopping', 'Clothes, cars, homes and more', () => openSheet('shop'), { cls: 'feature' })),
     adv.length ? section('Adventures', adv.map(x => row(x.emoji, x.name, G.used['adv_' + advKey(x)] ? 'Done this year' : x.sub, x.fn, { cls: G.used['adv_' + advKey(x)] ? 'done' : '' }))) : null,
     section('Side Hustles', HUSTLES.filter(x => a >= x.min && (!x.max || a <= x.max)).map(x => row(x.emoji, x.name, G.used['hustle_' + x.id] ? 'Done this year' : `Earn ${money(Math.max(0, x.pay[0]))}–${money(x.pay[1])}`, () => doHustle(x), { cls: G.used['hustle_' + x.id] ? 'done' : '' }))),
@@ -276,7 +290,7 @@ function powersPanel() {
   const n = s.nemesis;
   out.append(h('div', { class: `hero-card ${s.alignment}` },
     h('div', { class: 'hc-top' },
-      h('div', { class: 'hc-emoji' }, hero ? '🦸' : '🦹'),
+      h('div', { class: 'hc-emoji' }, (hero ? '🦸' : '🦹') + (G.skin || '')),
       h('div', {},
         h('div', { class: 'hc-name' }, s.alias),
         h('div', { class: 'hc-sub' }, `${hero ? 'Superhero' : 'Supervillain'} · ${tierName(s.level)}${s.retired ? ' · Retired' : ''}${s.ruler ? ' · 🌍 Ruler of Earth' : ''}${s.savedWorld ? ' · 🌍 Savior of Earth' : ''}`),
@@ -318,6 +332,7 @@ function powersPanel() {
   }
 
   const pct = d => `${Math.round(winChance(d) * 100)}% success · 1 energy`;
+  if (activeQuests().length) out.append(section('📖 Your Stories', questRows()));
   out.append(section('Missions', hero ? [
     row('🌃', 'Patrol the city', 'Find trouble, save people · 1 energy', actPatrol),
     s.rep >= 10 ? row('🕵️', 'Hunt a supervillain', '1 energy', actHuntVillain) : row('🕵️', 'Hunt a supervillain', 'Need 10 fame', null, { disabled: true, why: 'Get more famous first.' }),
@@ -368,14 +383,15 @@ function showStart() {
   const citySel = h('select', { id: 'f-city' }, h('option', { value: '' }, 'Random city'), CITIES.map(c => h('option', { value: c }, c)));
   const first = h('input', { id: 'f-first', placeholder: 'First name (optional)', maxlength: 20 });
   const last = h('input', { id: 'f-last', placeholder: 'Last name (optional)', maxlength: 20 });
+  const skin = h('select', { id: 'f-skin' }, h('option', { value: 'random' }, 'Random look'), SKIN_TONES.map((k, i) => h('option', { value: k }, `${'✋' + k} ${['Classic', 'Light', 'Medium-light', 'Medium', 'Medium-dark', 'Dark'][i]}`)));
   const gender = h('select', { id: 'f-gender' }, h('option', { value: '' }, 'Random gender'), h('option', { value: 'm' }, 'Male'), h('option', { value: 'f' }, 'Female'));
   const begin = opts => { newLife(opts); st.hidden = true; renderScrollPending = true; render(); };
   st.replaceChildren(h('div', { class: 'start-card' },
     h('div', { class: 'logo' }, h('span', {}, 'My'), 'Super', h('span', {}, 'Life')),
     h('p', { class: 'tagline' }, 'Live a whole life. Somewhere before 18, your origin story begins.'),
     hasSave ? h('button', { class: 'big-btn alt', onclick: () => { st.hidden = true; renderScrollPending = true; render(); } }, `▶ Continue as ${G.first} ${G.last} (age ${G.age})`) : null,
-    h('div', { class: 'form' }, first, last, gender, citySel),
-    h('button', { class: 'big-btn', onclick: () => begin({ first: first.value, last: last.value, gender: gender.value, city: citySel.value }) }, '✨ Start New Life'),
+    h('div', { class: 'form' }, first, last, gender, citySel, skin),
+    h('button', { class: 'big-btn', onclick: () => begin({ first: first.value, last: last.value, gender: gender.value, city: citySel.value, skin: skin.value }) }, '✨ Start New Life'),
     h('button', { class: 'big-btn ghost', onclick: () => begin({}) }, '🎲 Random Life'),
     h('button', { class: 'link-btn', onclick: showLegends }, `🏛️ Hall of Legends${(loadMeta().lives || 0) ? ` (${loadMeta().lives})` : ''}`)));
   st.hidden = false;
@@ -399,7 +415,7 @@ function showDeath() {
     h('div', { class: 'card-emoji' }, '🪦'),
     h('div', { class: 'ribbon' }, h('span', {}, r.emoji), h('b', {}, r.name), h('small', {}, r.desc)),
     h('h2', {}, `${G.first} ${G.last}`),
-    s && s.alias ? h('div', { class: `badge big ${s.alignment}` }, `${hero ? '🦸' : '🦹'} ${s.alias}`) : null,
+    s && s.alias ? h('div', { class: `badge big ${s.alignment}` }, `${hero ? '🦸' : '🦹'}${G.skin || ''} ${s.alias}`) : null,
     h('p', {}, `Died at age ${G.age} from ${G.cause}.`),
     h('p', { html: legacy }),
     h('div', { class: 'info' },
@@ -410,6 +426,7 @@ function showDeath() {
       s && s.nemesis ? h('div', {}, `😈 Nemesis: ${s.nemesis.name}`) : null,
       h('div', {}, `🏆 ${(G.achievements || []).length} achievements · 🎯 ${(G.goals || []).filter(g => g.done).length}/${(G.goals || []).length} life goals`),
       G.generation > 1 ? h('div', {}, `🧬 Generation ${G.generation}`) : null),
+    h('button', { class: 'big-btn story', onclick: showMemoir }, '📖 Read your life story'),
     kids.length ? h('div', { class: 'heirs' }, h('div', { class: 'section-title' }, 'Continue as your child'),
       kids.map(c => h('button', { class: 'big-btn alt', onclick: () => { continueAsChild(c); d.hidden = true; renderScrollPending = true; render(); } }, `${personEmoji(c)} ${c.first}, age ${c.age}`))) : null,
     h('button', { class: kids.length ? 'big-btn ghost' : 'big-btn', onclick: () => { clearSave(); showStart(); } }, '✨ New Life'),
@@ -425,6 +442,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (currentSheet === name) closeSheet(); else openSheet(name);
   }));
   $('#sheet-close').addEventListener('click', closeSheet);
+  $('#phone-btn').addEventListener('click', () => { if (currentSheet === 'phone') closeSheet(); else openSheet('phone'); });
   $('#avatar').addEventListener('click', () => { if (currentSheet === 'profile') closeSheet(); else openSheet('profile'); });
   $('#money').addEventListener('click', () => { if (currentSheet === 'shop') closeSheet(); else openSheet('shop'); });
   $('#menu-btn').addEventListener('click', () => popup({
@@ -432,6 +450,8 @@ window.addEventListener('DOMContentLoaded', () => {
     choices: [
       { label: '🪪 Profile & achievements', fn: () => openSheet('profile') },
       { label: '🏛️ Hall of Legends', fn: showLegends },
+      { label: '📖 Read your story so far', fn: showMemoir },
+      { label: `🎵 Music: ${musicOn() ? 'On' : 'Off'}`, fn: () => { setMusic(!musicOn()); toast(`Music ${musicOn() ? 'on' : 'off'}`); } },
       { label: `🔊 Sound: ${soundOn() ? 'On' : 'Off'}`, fn: () => { toggleSound(); toast(`Sound ${soundOn() ? 'on' : 'off'}`); } },
       { label: '🔄 Start a new life', fn: () => popup({ emoji: '⚠️', title: 'Are you sure?', text: 'Your current life will be lost forever.', choices: [{ label: 'Yes, start over', fn: () => { clearSave(); showStart(); } }, { label: 'Cancel' }] }) },
       { label: 'Close' },

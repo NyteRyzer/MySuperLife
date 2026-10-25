@@ -48,6 +48,16 @@ To play on your phone, turn on **GitHub Pages** for this repo (Settings → Page
 - **The city map**: six districts with their own crime levels. Heroes clean them up for fame; villains take them over and collect protection money
 - **The Daily Beacon**: a newspaper headline about your alter ego most years
 
+**Immersion**
+- **Phone**: family, friends, your partner, your boss, fans, henchmen, scammers and your nemesis text you, and you choose how to reply. Trace your nemesis's texts to ambush them
+- **Story arcs**: four multi-year quests that start with a text from an unknown number — The OmniCorp Conspiracy (heroes), The Heist of the Century (villains), Project Prometheus (the secret behind your powers) and The Blackwater Lighthouse (anyone)
+- **Life chapters**: at 13, 18, 30, 50 and 70 a chapter card appears and you choose what the chapter is about (ambition, love, adventure, health, wealth or power), each with its own bonus
+- **Your life story**: key moments are recorded and told back as a memoir, by life stage
+- **Inner thoughts** about what's happening in your life, and **world news** (recessions, booms, a metahuman panic, pandemics, elections) with real effects
+- **Super romance**: date a fellow hero or a forbidden villain, team up, and call them in for backup
+- **Comic-book battles** with POW!/BAM! bursts, screen shake, and a backup call to your partner, sidekick, team or super pet
+- **Skin tone** choice that carries down your family tree, **atmosphere** that shifts for heroes, villains and prison, an **animated story log**, and optional **background music**
+
 **Across lives**
 - **Achievements**: 37 to unlock, tracked across every life
 - **Life goals**: three random goals each life
@@ -73,6 +83,8 @@ js/battle.js      turn-based battles and signature moves
 js/city.js        city districts and newspaper headlines
 js/life2.js       pets, social media, hustles, investing, crime, trials, illness, holidays, moving
 js/meta.js        achievements, goals, ribbons, Hall of Legends, generations, sound, profile
+js/immersion.js   phone, chapters, memoir, thoughts, world news, super romance, atmosphere, music
+js/quests.js      multi-year story arcs
 js/ui.js          rendering, panels and popups
 ```
 

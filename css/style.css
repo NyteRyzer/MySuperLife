@@ -289,3 +289,61 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .stat.down .stat-val { color: var(--bad); animation: bump .6s; }
 @keyframes bump { 40% { transform: scale(1.35); } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ---------- immersion ---------- */
+body { transition: background .8s; }
+body[data-mood="hero"] { background: radial-gradient(circle at 20% 0%, #163a73 0%, var(--bg) 60%) fixed; }
+body[data-mood="villain"] { background: radial-gradient(circle at 20% 0%, #5a1430 0%, #120a1c 60%) fixed; }
+body[data-mood="prison"] { background: repeating-linear-gradient(90deg, #15141c 0 34px, #22202c 34px 40px) fixed; }
+body[data-mood="child"] { background: radial-gradient(circle at 20% 0%, #3b2a7a 0%, var(--bg) 60%) fixed; }
+
+#phone-btn { position: relative; background: none; border: none; font-size: 22px; padding: 2px 4px; }
+#phone-badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 99px; background: var(--bad); color: #fff; font-size: 11px; font-weight: 900; display: grid; place-items: center; }
+
+.year.fresh p { opacity: 0; animation: lineIn .45s ease forwards; }
+@keyframes lineIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.year p.thought { color: #b9b3e6; }
+.year p.world { color: #9fd3ff; }
+.year p.quest { color: #ffd88a; font-weight: 700; }
+.year p.chapter { color: var(--accent); font-weight: 800; }
+
+.card.chapter { border-color: var(--accent); background: radial-gradient(circle at 50% 0%, #4d3d0d, var(--panel) 70%); }
+.chapter-name { font-family: 'Bangers', Impact, 'Arial Black', sans-serif; font-size: 30px; letter-spacing: 1.5px; color: #fff; margin-bottom: 6px; }
+.chapter-sum { background: rgba(0,0,0,.3); border-radius: 10px; padding: 8px; font-size: 13px; line-height: 1.7; margin: 10px 0; }
+.card.quest { border-color: #e0a84a; background: radial-gradient(circle at 50% 0%, #4a3412, var(--panel) 70%); }
+.quest-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #e0a84a; font-weight: 900; margin-bottom: 8px; }
+.card.phone { border-color: var(--hero); }
+.sms { background: var(--panel-2); border-radius: 18px 18px 18px 4px; padding: 10px 14px; text-align: left; display: inline-block; max-width: 100%; margin-bottom: 4px; }
+.card.wide { max-width: 480px; }
+.memoir .card-text { text-align: left; }
+.memoir-stage h4 { font-family: 'Bangers', Impact, 'Arial Black', sans-serif; font-weight: 400; letter-spacing: 1px; color: var(--accent); font-size: 20px; margin: 14px 0 6px; }
+.memoir-stage p { margin: 4px 0; font-size: 14px; }
+.memoir-stage b { display: inline-block; min-width: 26px; color: var(--muted); }
+.memory { padding: 6px 2px; font-size: 13.5px; border-bottom: 1px solid var(--line); }
+.memory b { color: var(--muted); margin-right: 4px; }
+.big-btn.story { background: #e0a84a; box-shadow: 0 4px 0 #9c6f22; }
+
+.inbox { display: flex; flex-direction: column; gap: 6px; }
+.msg { display: flex; align-items: center; gap: 10px; text-align: left; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+.msg.unread { border-color: var(--hero); }
+.msg.unread b::after { content: ' •'; color: var(--hero); }
+.msg.quest { border-color: #e0a84a; }
+.msg-emoji { font-size: 24px; }
+.msg-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.msg-main small { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msg-age { color: var(--hero); font-weight: 900; }
+
+/* comic battle FX */
+.card { position: relative; }
+.burst {
+  position: absolute; top: 34%; right: 8%; z-index: 2; pointer-events: none;
+  font-family: 'Bangers', Impact, 'Arial Black', sans-serif; font-size: 40px; color: #fff200; letter-spacing: 2px;
+  -webkit-text-stroke: 2px #d1001f; text-shadow: 4px 4px 0 #000; transform: rotate(-12deg);
+  animation: burst .9s ease-out forwards;
+}
+.burst.big { font-size: 54px; right: 4%; }
+@keyframes burst { 0% { transform: rotate(-12deg) scale(.2); opacity: 0; } 25% { transform: rotate(-12deg) scale(1.25); opacity: 1; } 70% { opacity: 1; } 100% { transform: rotate(-12deg) scale(1); opacity: 0; } }
+.card.shake { animation: shake .4s; }
+@keyframes shake { 20% { transform: translateX(-8px) rotate(-1deg); } 40% { transform: translateX(7px) rotate(1deg); } 60% { transform: translateX(-5px); } 80% { transform: translateX(3px); } }
+#f-skin { grid-column: 1 / -1; }
+@media (prefers-reduced-motion: reduce) { .year.fresh p { opacity: 1; } .burst { opacity: 1; } }

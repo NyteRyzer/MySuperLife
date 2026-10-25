@@ -110,6 +110,7 @@ function doHustle(hu) {
   if (hu.need && !hu.need()) return toast(hu.why);
   if (!once('hustle_' + hu.id)) return;
   let pay = rand(hu.pay[0], hu.pay[1]);
+  if (pay > 0) pay = Math.round(pay * worldMod('pay', 1));
   if (hu.streamer) pay += Math.round(((G.social && G.social.followers) || 0) / 50);
   G.money += pay;
   fx({ ...(hu.fx || {}), sus: hu.sus || 0 });
@@ -228,7 +229,7 @@ function illnessTick() {
     const id = G.conditions.shift(); say(`🩹 Your healing factor cured your ${CONDITIONS.find(c => c.id === id).name.toLowerCase()}.`, 'good');
   }
   const pool = CONDITIONS.filter(c => G.age >= c.min && !G.conditions.includes(c.id) && (!c.super || (G.super && G.super.alignment && G.super.control < 50)));
-  if (pool.length && chance(0.04 + (G.age > 50 ? 0.04 : 0) + (G.stats.health < 40 ? 0.03 : 0))) {
+  if (pool.length && chance(0.04 + (G.age > 50 ? 0.04 : 0) + (G.stats.health < 40 ? 0.03 : 0) + worldMod('ill', 0))) {
     const c = weightedPick(pool);
     G.conditions.push(c.id);
     say(`${c.emoji} You were diagnosed with ${c.name.toLowerCase()}.`, 'bad');

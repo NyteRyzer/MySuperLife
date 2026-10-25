@@ -294,6 +294,64 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @keyframes bump { 40% { transform: scale(1.35); } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
+/* ---------- immersion ---------- */
+body { transition: background .8s; }
+body[data-mood="hero"] { background: radial-gradient(circle at 20% 0%, #163a73 0%, var(--bg) 60%) fixed; }
+body[data-mood="villain"] { background: radial-gradient(circle at 20% 0%, #5a1430 0%, #120a1c 60%) fixed; }
+body[data-mood="prison"] { background: repeating-linear-gradient(90deg, #15141c 0 34px, #22202c 34px 40px) fixed; }
+body[data-mood="child"] { background: radial-gradient(circle at 20% 0%, #3b2a7a 0%, var(--bg) 60%) fixed; }
+
+#phone-btn { position: relative; background: none; border: none; font-size: 22px; padding: 2px 4px; }
+#phone-badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 99px; background: var(--bad); color: #fff; font-size: 11px; font-weight: 900; display: grid; place-items: center; }
+
+.year.fresh p { opacity: 0; animation: lineIn .45s ease forwards; }
+@keyframes lineIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.year p.thought { color: #b9b3e6; }
+.year p.world { color: #9fd3ff; }
+.year p.quest { color: #ffd88a; font-weight: 700; }
+.year p.chapter { color: var(--accent); font-weight: 800; }
+
+.card.chapter { border-color: var(--accent); background: radial-gradient(circle at 50% 0%, #4d3d0d, var(--panel) 70%); }
+.chapter-name { font-family: 'Bangers', Impact, 'Arial Black', sans-serif; font-size: 30px; letter-spacing: 1.5px; color: #fff; margin-bottom: 6px; }
+.chapter-sum { background: rgba(0,0,0,.3); border-radius: 10px; padding: 8px; font-size: 13px; line-height: 1.7; margin: 10px 0; }
+.card.quest { border-color: #e0a84a; background: radial-gradient(circle at 50% 0%, #4a3412, var(--panel) 70%); }
+.quest-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #e0a84a; font-weight: 900; margin-bottom: 8px; }
+.card.phone { border-color: var(--hero); }
+.sms { background: var(--panel-2); border-radius: 18px 18px 18px 4px; padding: 10px 14px; text-align: left; display: inline-block; max-width: 100%; margin-bottom: 4px; }
+.card.wide { max-width: 480px; }
+.memoir .card-text { text-align: left; }
+.memoir-stage h4 { font-family: 'Bangers', Impact, 'Arial Black', sans-serif; font-weight: 400; letter-spacing: 1px; color: var(--accent); font-size: 20px; margin: 14px 0 6px; }
+.memoir-stage p { margin: 4px 0; font-size: 14px; }
+.memoir-stage b { display: inline-block; min-width: 26px; color: var(--muted); }
+.memory { padding: 6px 2px; font-size: 13.5px; border-bottom: 1px solid var(--line); }
+.memory b { color: var(--muted); margin-right: 4px; }
+.big-btn.story { background: #e0a84a; box-shadow: 0 4px 0 #9c6f22; }
+
+.inbox { display: flex; flex-direction: column; gap: 6px; }
+.msg { display: flex; align-items: center; gap: 10px; text-align: left; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+.msg.unread { border-color: var(--hero); }
+.msg.unread b::after { content: ' •'; color: var(--hero); }
+.msg.quest { border-color: #e0a84a; }
+.msg-emoji { font-size: 24px; }
+.msg-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.msg-main small { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msg-age { color: var(--hero); font-weight: 900; }
+
+/* comic battle FX */
+.card { position: relative; }
+.burst {
+  position: absolute; top: 34%; right: 8%; z-index: 2; pointer-events: none;
+  font-family: 'Bangers', Impact, 'Arial Black', sans-serif; font-size: 40px; color: #fff200; letter-spacing: 2px;
+  -webkit-text-stroke: 2px #d1001f; text-shadow: 4px 4px 0 #000; transform: rotate(-12deg);
+  animation: burst .9s ease-out forwards;
+}
+.burst.big { font-size: 54px; right: 4%; }
+@keyframes burst { 0% { transform: rotate(-12deg) scale(.2); opacity: 0; } 25% { transform: rotate(-12deg) scale(1.25); opacity: 1; } 70% { opacity: 1; } 100% { transform: rotate(-12deg) scale(1); opacity: 0; } }
+.card.shake { animation: shake .4s; }
+@keyframes shake { 20% { transform: translateX(-8px) rotate(-1deg); } 40% { transform: translateX(7px) rotate(1deg); } 60% { transform: translateX(-5px); } 80% { transform: translateX(3px); } }
+#f-skin { grid-column: 1 / -1; }
+@media (prefers-reduced-motion: reduce) { .year.fresh p { opacity: 1; } .burst { opacity: 1; } }
+
 </style>
 <div id="app">
     <header id="topbar">
@@ -303,6 +361,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
         <div id="sub"></div>
       </div>
       <div class="right">
+        <button id="phone-btn" aria-label="Messages">📱<span id="phone-badge" hidden></span></button>
         <div id="money">$0</div>
         <button id="menu-btn" aria-label="Menu">☰</button>
       </div>
@@ -712,6 +771,7 @@ function newYearLog() { G.log.push({ age: G.age, lines: [] }); }
 function say(text, cls) {
   const y = G.log[G.log.length - 1];
   y.lines.push(cls ? { t: text, c: cls } : { t: text });
+  if (typeof remember === 'function' && (cls === 'super' || cls === 'quest' || MEMORY_MARKERS.some(m => text.startsWith(m)))) remember(text);
 }
 
 // Apply a bundle of stat changes. Keys: happy health smarts looks money rep sus heat level control
@@ -746,7 +806,7 @@ function randomPerson(gender, minAge, maxAge, role, last) {
   gender = gender || pick(['m', 'f']);
   return {
     first: pick(FIRST_NAMES[gender]), last: last || pick(LAST_NAMES), gender, role,
-    age: rand(minAge, maxAge), looks: rand(10, 100),
+    age: rand(minAge, maxAge), looks: rand(10, 100), skin: pick(SKIN_TONES),
   };
 }
 function roleLabel(p) {
@@ -786,10 +846,11 @@ function newLife(opts = {}) {
   initCity();
   const wealth = pick([0.5, 1, 1, 1, 2, 4]);
   G.familyWealth = wealth;
-  const mom = addPerson({ ...randomPerson('f', 22, 40, 'Parent', last), bond: rand(60, 100) });
-  const dad = addPerson({ ...randomPerson('m', 22, 42, 'Parent', last), bond: rand(50, 100) });
+  G.skin = opts.skin != null && opts.skin !== 'random' ? opts.skin : pick(SKIN_TONES);
+  const mom = addPerson({ ...randomPerson('f', 22, 40, 'Parent', last), bond: rand(60, 100), skin: G.skin });
+  const dad = addPerson({ ...randomPerson('m', 22, 42, 'Parent', last), bond: rand(50, 100), skin: G.skin });
   const sibs = rand(0, 2);
-  for (let i = 0; i < sibs; i++) addPerson({ ...randomPerson(null, 1, 9, 'Sibling', last), bond: rand(40, 90) });
+  for (let i = 0; i < sibs; i++) addPerson({ ...randomPerson(null, 1, 9, 'Sibling', last), bond: rand(40, 90), skin: G.skin });
 
   newYearLog();
   say(`You were born a ${gender === 'm' ? 'boy' : 'girl'} in ${G.city}, a city where people whisper about masked vigilantes on the rooftops.`);
@@ -808,6 +869,7 @@ function ageUp() {
   G.jobOffers = null;
   G.lastInjury = null;
   newYearLog();
+  if (G.age >= 2 && chance(0.45)) innerThought();
 
   yearlyStats();
   peopleTick();
@@ -819,6 +881,10 @@ function ageUp() {
   petsTick();
   illnessTick();
   if (G.super) superYearly();
+  worldNews();
+  focusYearly();
+  phoneYearly();
+  questYearly();
 
   if (naturalDeath()) return;
 
@@ -828,6 +894,7 @@ function ageUp() {
     if (!G.super && G.age >= 3 && chance(0.25)) say(pick(HINTS), 'hint');
     runYearEvents();
   }
+  checkChapter();
   sfx('age');
   if (!isModalOpen()) nextModal();
 }
@@ -997,6 +1064,7 @@ function load() {
       G.invest = G.invest || {}; G.conditions = G.conditions || []; G.achievements = G.achievements || [];
       G.generation = G.generation || 1; G.goals = G.goals || pickGoals(); G.flags = G.flags || {};
       if (!G.districts) initCity();
+      G.inbox = G.inbox || []; G.quests = G.quests || {}; G.memories = G.memories || []; if (G.skin == null) G.skin = '';
     }
     return !!(G && G.alive);
   } catch (e) { return false; }
@@ -1025,7 +1093,7 @@ function maxEnergy() { return 3 + pw('energy', 0); }
 function gadgetBonus() { return G.super.gadgets.reduce((t, id) => t + GADGETS.find(g => g.id === id).bonus, 0); }
 function baseBonus() { return G.super.base >= 0 ? BASES[G.super.base].bonus : 0; }
 function teamBonus() { return G.super.team ? G.super.team.bonus : 0; }
-function priceMult() { return pw('gadget', 1); }
+function priceMult() { return pw('gadget', 1) * worldMod('price', 1); }
 
 // Overall combat strength. Starts ~30, tops out ~150.
 function combatScore() {
@@ -1173,7 +1241,7 @@ function finishOrigin() {
 function addSuspicion(n) {
   const s = G.super;
   if (!s || s.exposed || n === 0) return;
-  if (n > 0) n = Math.round(n * COSTUMES[s.costume].mult * pw('stealth', 1));
+  if (n > 0) n = Math.round(n * COSTUMES[s.costume].mult * pw('stealth', 1) * worldMod('sus', 1));
   s.suspicion = clamp(s.suspicion + n);
   if (s.suspicion >= 100) exposeIdentity('The press connected the dots.');
 }
@@ -1270,7 +1338,7 @@ function fightNemesis(context) {
 function actTrain() {
   if (!spendEnergy()) return;
   const s = G.super;
-  const gain = Math.max(1, Math.round(rand(2, 6) * (s.level < 50 ? 1 : s.level < 80 ? 0.6 : 0.35)));
+  const gain = Math.max(1, Math.round(rand(2, 6) * (s.level < 50 ? 1 : s.level < 80 ? 0.6 : 0.35))) + (focusIs('power') ? 2 : 0);
   s.level = clamp(s.level + gain);
   s.control = clamp(s.control + rand(3, 8));
   fx({ health: rand(0, 3) });
@@ -1801,7 +1869,7 @@ const LIFE_EVENTS = [
     cond: () => living('Parent').length === 2 && living('Parent').some(p => p.gender === 'f' && p.age < 43) && (G.flags.newSibs || 0) < 2,
     fire() {
       G.flags.newSibs = (G.flags.newSibs || 0) + 1;
-      const s = addPerson({ ...randomPerson(null, 0, 0, 'Sibling', G.last), bond: rand(50, 90) });
+      const s = addPerson({ ...randomPerson(null, 0, 0, 'Sibling', G.last), bond: rand(50, 90), skin: G.skin });
       say(`👶 Your parents had a baby ${s.gender === 'm' ? 'boy' : 'girl'} named ${s.first}!`, 'good');
       fx({ happy: 4 });
     },
@@ -1919,7 +1987,7 @@ const SUPER_EVENTS = [
     },
   },
   {
-    id: 'kidnap', w: 2, cond: () => nemesisAvailable() && G.people.some(p => p.alive && (p.knows || G.super.exposed)) && G.age >= 16,
+    id: 'kidnap', w: 1, cond: () => nemesisAvailable() && G.people.some(p => p.alive && (p.knows || G.super.exposed)) && G.age >= 16,
     fire() {
       const n = G.super.nemesis;
       const victim = pick(G.people.filter(p => p.alive && (p.knows || G.super.exposed)));
@@ -1927,7 +1995,7 @@ const SUPER_EVENTS = [
       popup({ emoji: '🆘', title: 'Kidnapped!', text: `${n.name} has kidnapped your ${vl} <b>${victim.first}</b>! A note says: “Come alone to the old clock tower at midnight.”`, choices: [
         { label: 'Go alone and rescue them', fn: () => {
           duel(n.level + 40, { name: n.name, power: n.power }, `At the top of the clock tower, ${victim.first} is tied up and ${n.name} is waiting.`, () => { victim.bond = clamp(victim.bond + 20); fx({ rep: 10, happy: 10 }); n.losses++; say(`🦸 You rescued your ${vl} ${victim.first} from ${n.name}!`, 'good'); result('🦸', 'Rescued!', `You beat ${n.name} and carried ${victim.first} to safety.`); }, () => {
-            const dmg = injure(15, 35, `a fight with ${n.name}`);
+            const dmg = injure(10, 24, `a fight with ${n.name}`);
             if (chance(0.35)) { victim.alive = false; fx({ happy: -30 }); say(`💀 You failed to save your ${vl} ${victim.first}. ${n.name} killed them.`, 'bad'); result('💀', 'Too Late', `You weren’t strong enough. ${victim.first} is gone. (-${dmg} health)`); }
             else { fx({ happy: -10 }); say(`You lost to ${n.name}, but ${victim.first} escaped in the chaos. (-${dmg} health)`); result('😮‍💨', 'Barely', `You lost the fight, but ${victim.first} slipped away in the chaos. (-${dmg} health)`); }
           }, { canFlee: false });
@@ -2182,7 +2250,7 @@ function actFindLove() {
   const c = randomPerson(null, Math.max(16, G.age - 6), G.age + 6, 'Partner');
   popup({ emoji: '💘', title: 'Dating', text: `You met <b>${fullName(c)}</b>, age ${c.age}.<br>Looks: ${c.looks}%`, choices: [
     { label: 'Ask them out', fn: () => {
-      if (chance(0.3 + G.stats.looks / 160 + (G.super && G.super.exposed && isHero() ? 0.2 : 0))) {
+      if (chance(0.3 + G.stats.looks / 160 + (G.super && G.super.exposed && isHero() ? 0.2 : 0) + (focusIs('love') ? 0.15 : 0))) {
         const p = addPerson({ ...c, bond: rand(55, 85) });
         fx({ happy: 10 });
         say(`💕 You started dating ${fullName(p)}.`, 'good');
@@ -2295,9 +2363,16 @@ function personActions(p) {
   const isPartner = p.role === 'Partner' || p.role === 'Spouse';
   popup({
     emoji: personEmoji(p), title: fullName(p),
-    text: `${label} · Age ${p.age}${p.trait ? ` · ${TRAIT_EMOJI[p.trait]} ${p.trait}` : ''}<br>Relationship: <b>${p.bond}%</b>${knowsLine}`,
+    text: `${label} · Age ${p.age}${p.superAlias ? ` · 🦸 secretly ${p.superAlias}` : ''}${p.trait ? ` · ${TRAIT_EMOJI[p.trait]} ${p.trait}` : ''}<br>Relationship: <b>${p.bond}%</b>${knowsLine}`,
     choices: [
       ...(p.role === 'Friend' || p.role === 'Best Friend' ? friendChoices(p) : []),
+      { label: `🦸 Team up as ${p.superAlias}`, show: () => p.superAlias && G.super && G.super.alignment && !G.super.retired, fn: () => {
+        if (!once('teamup' + p.id)) return;
+        p.bond = clamp(p.bond + 10); markActive();
+        fx(p.superSide === 'hero' ? { rep: rand(3, 6), happy: 8 } : { rep: rand(3, 6), heat: 6, happy: 8, money: rand(20, 80) * 1000 });
+        say(`💞 You and ${p.first} (${p.superAlias}) teamed up for a night out in costume.`, 'super');
+        toast(`${p.superAlias} has your back`);
+      } },
       { label: '⏰ Spend time together', fn: () => { if (!once(key('time'))) return; const b = rand(4, 12); p.bond = clamp(p.bond + b); fx({ happy: rand(2, 5) }); say(`You spent time with your ${label.toLowerCase()} ${p.first}.`); toast(`Relationship +${b}`); } },
       { label: '💬 Have a conversation', fn: () => { if (!once(key('talk'))) return; const b = rand(-2, 7); p.bond = clamp(p.bond + b); toast(b >= 0 ? `Relationship +${b}` : 'That got awkward…'); } },
       { label: '🌹 Compliment', fn: () => { if (!once(key('comp'))) return; p.bond = clamp(p.bond + rand(1, 5)); toast(`${p.first} smiled.`); } },
@@ -2316,7 +2391,7 @@ function personActions(p) {
       { label: '👶 Try for a baby', show: () => isPartner && G.age >= 18 && G.age <= 50 && p.age <= 50, fn: () => {
         if (!once('baby')) return;
         if (chance(0.5)) {
-          const kid = addPerson({ ...randomPerson(null, 0, 0, 'Child', G.last), bond: rand(70, 100) });
+          const kid = addPerson({ ...randomPerson(null, 0, 0, 'Child', G.last), bond: rand(70, 100), skin: pick([G.skin || '', p.skin || '']) });
           fx({ happy: 12 });
           say(`👶 You had a baby ${kid.gender === 'm' ? 'boy' : 'girl'} named ${kid.first}!`, 'good');
           result('👶', 'It’s a Baby!', `Welcome to the world, <b>${kid.first}</b>!`);
@@ -2350,10 +2425,11 @@ function revealTo(p) {
 function personEmoji(p) {
   if (!p.alive) return '🪦';
   const m = p.gender === 'm';
-  if (p.age < 4) return '👶';
-  if (p.age < 13) return m ? '👦' : '👧';
-  if (p.age < 60) return m ? '👨' : '👩';
-  return m ? '👴' : '👵';
+  const k = p.skin || '';
+  if (p.age < 4) return '👶' + k;
+  if (p.age < 13) return (m ? '👦' : '👧') + k;
+  if (p.age < 60) return (m ? '👨' : '👩') + k;
+  return (m ? '👴' : '👵') + k;
 }
 
 // Immersive multi-step activities ("adventures"). Each one is a short chain of scenes with choices.
@@ -2895,6 +2971,30 @@ function checkMoves() {
 // Converts an old-style difficulty number into an enemy combat rating.
 function ratingFor(diff) { return Math.max(10, (diff + 10) / 1.2); }
 
+const HIT_WORDS = ['POW!', 'BAM!', 'WHAM!', 'KRAK!', 'ZAP!', 'THWACK!', 'SMASH!', 'KAPOW!'];
+function backupAlly() {
+  const s = G.super, sp = superPartner();
+  if (sp) return { name: sp.superAlias, text: `${sp.superAlias} swoops in beside you!` };
+  if (s.sidekick) return { name: s.sidekick.name, text: `${s.sidekick.name} charges in to help!` };
+  if (s.team) return { name: s.team.name, text: `${s.team.name} answers the call!` };
+  const pet = livingPets().find(p => p.powered);
+  if (pet) return { name: pet.name, text: `${pet.name} the super ${pet.kind.toLowerCase()} leaps into the fight!` };
+  return null;
+}
+// Comic-book hit bursts and screen shake, applied after the battle card renders.
+function battleFx(B) {
+  return card => {
+    if (B.burst) {
+      const b = document.createElement('div');
+      b.className = `burst ${B.burst.big ? 'big' : ''}`;
+      b.textContent = B.burst.word;
+      card.append(b);
+    }
+    if (B.hurt) card.classList.add('shake');
+    B.burst = null; B.hurt = false;
+  };
+}
+
 function hpBar(label, v, cls) {
   return `<div class="hp"><span>${esc(label)}</span><div class="hp-bar"><div class="hp-fill ${cls}" style="width:${Math.max(0, v)}%"></div></div><b>${Math.max(0, Math.round(v))}</b></div>`;
 }
@@ -2915,7 +3015,7 @@ function battleTurn(B) {
   const sig = bestMove();
   const p = POWERS[s.power];
   popup({
-    emoji: '⚔️', title: B.turn === 1 ? `VS ${B.enemy.name}` : `Round ${B.turn}`, cls: 'battle', grid: true,
+    emoji: '⚔️', title: B.turn === 1 ? `VS ${B.enemy.name}` : `Round ${B.turn}`, cls: 'battle', grid: true, after: battleFx(B),
     text: `${B.turn === 1 && B.intro ? `<p>${B.intro}</p>` : ''}${B.log ? `<div class="blog">${B.log}</div>` : ''}
       ${hpBar(s.alias, B.you, 'you')}${hpBar(B.enemy.name, B.foe, 'foe')}
       <div class="stam">Stamina ${'⚡'.repeat(B.stamina) || '—'}</div>`,
@@ -2925,6 +3025,7 @@ function battleTurn(B) {
       { label: '🛡️ Defend', hint: 'Block · +1 stamina', fn: () => playerMove(B, 'defend') },
       { label: `🌟 ${sig ? sig.name : ''}`, hint: 'Signature move', cls: 'sig', show: () => sig && !B.sigUsed, fn: () => playerMove(B, 'sig') },
       { label: '🧰 Gadget', hint: 'Can’t miss', show: () => s.gadgets.length && !B.gadgetUsed, fn: () => playerMove(B, 'gadget') },
+      { label: '📞 Call backup', hint: backupAlly() ? backupAlly().name : '', show: () => backupAlly() && !B.backupUsed, fn: () => playerMove(B, 'backup') },
       { label: '🏃 Flee', hint: 'Escape the fight', show: () => B.canFlee, fn: () => flee(B) },
       { label: '⏩ Auto', hint: 'Skip to the end', fn: () => autoFinish(B) },
     ],
@@ -2951,11 +3052,15 @@ function playerMove(B, kind) {
     const gid = pick(s.gadgets);
     const g = GADGETS.find(x => x.id === gid);
     dmg = (8 + gadgetBonus()) * r; text = `You hit them with your ${g.name.toLowerCase()}!`;
+  } else if (kind === 'backup') {
+    B.backupUsed = true;
+    const a = backupAlly();
+    dmg = rand(16, 26) * Math.max(0.8, r); text = a.text;
   } else if (kind === 'defend') {
     B.guard = true; B.stamina = Math.min(3, B.stamina + 1); text = 'You brace yourself.';
   }
   B.foe -= Math.round(dmg);
-  if (dmg) sfx('hit');
+  if (dmg) { sfx('hit'); B.burst = { word: kind === 'sig' ? 'KA-BOOOM!' : pick(HIT_WORDS), big: kind === 'sig' || dmg > 22 }; }
   B.log = `${text}${dmg ? ` <b>-${Math.round(dmg)}</b>` : ''}`;
   if (B.foe <= 0) return endBattle(B, true);
   enemyMove(B, r);
@@ -2973,6 +3078,7 @@ function enemyMove(B, r) {
     text = special && ep ? `${B.enemy.name} unleashes their ${ep.name.toLowerCase()}! <b>-${dmg}</b>` : `${B.enemy.name} hits back. <b>-${dmg}</b>`;
   } else text = `${B.enemy.name} misses!`;
   B.you -= dmg;
+  if (dmg > 0) B.hurt = true;
   B.log += `<br>${text}`;
   B.turn++;
   if (B.you <= 0) return endBattle(B, false);
@@ -3228,6 +3334,7 @@ function doHustle(hu) {
   if (hu.need && !hu.need()) return toast(hu.why);
   if (!once('hustle_' + hu.id)) return;
   let pay = rand(hu.pay[0], hu.pay[1]);
+  if (pay > 0) pay = Math.round(pay * worldMod('pay', 1));
   if (hu.streamer) pay += Math.round(((G.social && G.social.followers) || 0) / 50);
   G.money += pay;
   fx({ ...(hu.fx || {}), sus: hu.sus || 0 });
@@ -3346,7 +3453,7 @@ function illnessTick() {
     const id = G.conditions.shift(); say(`🩹 Your healing factor cured your ${CONDITIONS.find(c => c.id === id).name.toLowerCase()}.`, 'good');
   }
   const pool = CONDITIONS.filter(c => G.age >= c.min && !G.conditions.includes(c.id) && (!c.super || (G.super && G.super.alignment && G.super.control < 50)));
-  if (pool.length && chance(0.04 + (G.age > 50 ? 0.04 : 0) + (G.stats.health < 40 ? 0.03 : 0))) {
+  if (pool.length && chance(0.04 + (G.age > 50 ? 0.04 : 0) + (G.stats.health < 40 ? 0.03 : 0) + worldMod('ill', 0))) {
     const c = weightedPick(pool);
     G.conditions.push(c.id);
     say(`${c.emoji} You were diagnosed with ${c.name.toLowerCase()}.`, 'bad');
@@ -3572,7 +3679,7 @@ function showLegends() {
   const meta = loadMeta();
   const list = meta.legends || [];
   const ach = (meta.ach || []).length;
-  popup({ emoji: '🏛️', title: 'Hall of Legends', cls: 'wide',
+  popup({ emoji: '🏛️', title: 'Hall of Legends', cls: 'wide', always: true,
     text: `${meta.lives || 0} lives lived · ${ach}/${ACHIEVEMENTS.length} achievements earned<br><br>` + (list.length ? list.map(l =>
       `<div class="legend-row"><b>${esc(l.name)}</b>${l.alias ? ` · <span class="badge ${l.alignment}">${l.alignment === 'hero' ? '🦸' : '🦹'} ${esc(l.alias)}</span>` : ''}<br>
        <small>${l.ribbon} · Gen ${l.gen} · ${l.power ? POWERS[l.power].emoji + ' ' : ''}Died at ${l.age} (${esc(l.cause || '')}) · ${money(l.net)}</small></div>`).join('') : '<i>No legends yet. Live a life to be remembered.</i>'),
@@ -3587,7 +3694,8 @@ function continueAsChild(c) {
   const parentAlias = old.super && old.super.alias;
   const deceased = { first: old.first, last: old.last, gender: old.gender, role: 'Parent', age: old.age, alive: false, bond: c.bond, knows: true };
   G = {
-    v: 1, alive: true, first: c.first, last: c.last, gender: c.gender, city: old.city, age: c.age,
+    v: 1, alive: true, first: c.first, last: c.last, gender: c.gender, city: old.city, age: c.age, skin: c.skin != null ? c.skin : old.skin,
+    inbox: [], quests: {}, memories: [],
     stats: { happy: clamp(rand(40, 70)), health: rand(70, 100), smarts: rand(20, 90), looks: rand(20, 100) },
     money: inherit, debt: 0, assets: [], renting: false,
     edu: { level: c.age >= 18 ? 1 : 0, stage: c.age >= 5 && c.age < 18 ? (c.age < 11 ? 'Elementary School' : c.age < 14 ? 'Middle School' : 'High School') : '', years: 0, dropped: false },
@@ -3650,6 +3758,15 @@ function profilePanel() {
     G.social && G.social.followers ? h('div', {}, `📱 ${followersText(G.social.followers)} followers${G.social.verified ? ' ✔️' : ''}`) : null,
     G.record ? h('div', {}, `🚓 Criminal record: ${G.record} offense${G.record > 1 ? 's' : ''}`) : null,
     s && s.alias ? h('div', {}, `${s.alignment === 'hero' ? '🦸' : '🦹'} ${s.alias} · ${POWERS[s.power].name} · power ${s.level}`) : null));
+  const w = G.world && G.world.age === G.age ? WORLD_EVENTS.find(e => e.id === G.world.id) : null;
+  const f = FOCUSES.find(x => x.id === G.focus);
+  if (f || w) out.append(h('div', { class: 'info' },
+    f ? h('div', {}, `📖 This chapter is about `, h('b', {}, `${f.emoji} ${f.name}`), ` · ${f.desc.toLowerCase()}`) : null,
+    w ? h('div', {}, `${w.emoji} World this year: ${w.headline}`) : null));
+  if (activeQuests().length || questsDone()) out.append(section('Stories', questRows(),
+    QUESTS.filter(q => qState(q.id) && qState(q.id).done).map(q => h('div', { class: 'goal done' }, `✅ ${q.emoji} ${q.title}`, h('small', {}, ` finished at ${qState(q.id).finished}`)))));
+  out.append(section('Memories', (G.memories || []).slice(-6).reverse().map(m => h('div', { class: 'memory' }, h('b', {}, m.age), ' ', m.t)),
+    row('📖', 'Read your whole story', `${(G.memories || []).length} memories`, showMemoir)));
   out.append(section('Life Goals', (G.goals || []).map(g => {
     const def = GOALS.find(x => x.id === g.id);
     return h('div', { class: `goal ${g.done ? 'done' : ''}` }, g.done ? '✅' : '⬜', ' ', def.text, g.done ? h('small', {}, ` age ${g.age}`) : null);
@@ -3661,6 +3778,525 @@ function profilePanel() {
     h('div', { class: `ach ${mine.includes(a.id) ? 'got' : ''}`, title: a.desc }, h('span', {}, mine.includes(a.id) ? a.emoji : '🔒'), h('b', {}, a.name), h('small', {}, a.desc))))));
   return out;
 }
+
+// Immersion: memories & memoir, life chapters, inner thoughts, world news, the phone,
+// super romance, skin tones, atmosphere and background music.
+
+const SKIN_TONES = ['', '🏻', '🏼', '🏽', '🏾', '🏿'];
+function withSkin(emoji, skin) { return emoji + (skin || ''); }
+const stripTags = s => String(s).replace(/<[^>]+>/g, '');
+
+// ---------- memories ----------
+const MEMORY_MARKERS = ['💍', '👶', '🎓', '💔', '⛓️', '📰', '🌍', '🧬', '🚚', '💕', '🎯', '🥇', '💀', '🔓', '📜', '📖', '🌟'];
+function remember(text) {
+  if (!G) return;
+  G.memories = G.memories || [];
+  const t = stripTags(text);
+  if (G.memories.length && G.memories[G.memories.length - 1].t === t) return;
+  G.memories.push({ age: G.age, t });
+  if (G.memories.length > 120) G.memories.splice(0, G.memories.length - 120);
+}
+const LIFE_STAGES = [[0, 12, 'Childhood'], [13, 17, 'The Teenage Years'], [18, 29, 'Young Adulthood'], [30, 49, 'The Prime Years'], [50, 69, 'Later Life'], [70, 999, 'The Final Chapter']];
+function memoirHTML() {
+  const mem = G.memories || [];
+  const parts = LIFE_STAGES.map(([a, b, name]) => {
+    const list = mem.filter(m => m.age >= a && m.age <= b);
+    if (!list.length) return '';
+    return `<div class="memoir-stage"><h4>${name}</h4>${list.map(m => `<p><b>${m.age}</b> ${esc(m.t)}</p>`).join('')}</div>`;
+  }).join('');
+  return parts || '<i>A quiet life, with few stories to tell.</i>';
+}
+function showMemoir() {
+  popup({ emoji: '📖', title: `The Life of ${G.first} ${G.last}`, cls: 'wide memoir', always: true, text: memoirHTML(), choices: [{ label: 'Close' }] });
+}
+
+// ---------- chapters & life focus ----------
+const CHAPTERS = [
+  { age: 13, n: 2, title: 'The Teenage Years', line: 'Your body is changing, your friends matter more than anything, and the world suddenly feels enormous.' },
+  { age: 18, n: 3, title: 'Adulthood Begins', line: 'You’re officially an adult. Nobody is going to tell you what to do anymore. That’s exciting — and terrifying.' },
+  { age: 30, n: 4, title: 'The Prime Years', line: 'Thirty. You know who you are now. Or at least, you’re starting to.' },
+  { age: 50, n: 5, title: 'Later Life', line: 'Half a century behind you. The view from here is different.' },
+  { age: 70, n: 6, title: 'The Final Chapter', line: 'Every year is a gift now. What will you do with the time you have left?' },
+];
+const FOCUSES = [
+  { id: 'career', emoji: '💼', name: 'Ambition', desc: 'Your job performance climbs faster' },
+  { id: 'love', emoji: '❤️', name: 'Love', desc: 'Easier dating, stronger relationships' },
+  { id: 'adventure', emoji: '🧭', name: 'Adventure', desc: 'Extra happiness every year' },
+  { id: 'health', emoji: '🍎', name: 'Health', desc: 'Your health holds up better' },
+  { id: 'wealth', emoji: '💰', name: 'Wealth', desc: 'Your investments grow faster' },
+  { id: 'power', emoji: '⚡', name: 'Power', desc: 'Training your powers works better', show: () => G.super && G.super.alignment },
+];
+function focusIs(id) { return G.focus === id; }
+function checkChapter() {
+  const c = CHAPTERS.find(x => x.age === G.age);
+  if (!c || G.prison > 0) return;
+  const s = G.super;
+  const summary = [
+    `😊 ${G.stats.happy}% · ❤️ ${G.stats.health}% · 🧠 ${G.stats.smarts}% · ✨ ${G.stats.looks}%`,
+    `🏦 ${money(netWorth())}${G.job ? ` · 💼 ${jobTitle(G.job)}` : ''}`,
+    s && s.alias ? `${s.alignment === 'hero' ? '🦸' : '🦹'} ${esc(s.alias)} · power ${s.level}` : '',
+  ].filter(Boolean).join('<br>');
+  popup({
+    emoji: '📖', title: `Chapter ${c.n}`, cls: 'chapter',
+    text: `<div class="chapter-name">${c.title}</div><p>${c.line}</p><div class="chapter-sum">${summary}</div><p><b>What will this chapter be about?</b></p>`,
+    grid: true,
+    choices: FOCUSES.filter(f => !f.show || f.show()).map(f => ({ label: `${f.emoji} ${f.name}`, hint: f.desc, fn: () => {
+      G.focus = f.id;
+      say(`📖 Chapter ${c.n}: ${c.title}. You decided this chapter is about ${f.name.toLowerCase()}.`, 'chapter');
+    } })),
+  });
+}
+function focusYearly() {
+  if (!G.focus) return;
+  if (focusIs('career') && G.job) G.job.perf = clamp(G.job.perf + 4);
+  if (focusIs('love')) G.people.filter(p => p.alive && ['Partner', 'Spouse', 'Child', 'Parent'].includes(p.role)).forEach(p => { p.bond = clamp(p.bond + 3); });
+  if (focusIs('adventure')) fx({ happy: rand(1, 4) });
+  if (focusIs('health')) fx({ health: rand(0, 2) });
+  if (focusIs('wealth') && G.invest) Object.keys(G.invest).forEach(k => { G.invest[k] = Math.round(G.invest[k] * 1.03); });
+}
+
+// ---------- inner thoughts ----------
+function innerThought() {
+  const s = G.super, p = partner(), n = s && s.nemesis;
+  const opts = [];
+  if (G.age < 5) opts.push('Everything is so big and new!', 'Why is the sky blue? Why is everything?');
+  if (G.prison > 0) opts.push('These walls get closer every year.', 'I count the days. Then I lose count.');
+  if (!s && G.age >= 5) opts.push('Sometimes I feel like I’m meant for something bigger.', 'Do superheroes ever feel normal?');
+  if (s && s.alignment) {
+    if (s.suspicion > 60 && !s.exposed) opts.push('Everyone is looking at me differently. Do they know?', 'One more slip and it’s over.');
+    if (n && n.alive && !n.jailed) opts.push(`I can’t stop thinking about ${n.name}.`, `${n.name} is out there. Waiting.`);
+    if (isHero()) opts.push('The city never sleeps. Neither do I.', 'Who saves the hero?', 'Every person I save is worth it.');
+    else opts.push('They call me a monster. They have no idea.', 'Power is the only thing this world respects.', 'One day, they’ll all kneel.');
+    if (s.exposed) opts.push('Strangers know my name now. My real name.');
+  }
+  if (G.stats.happy < 30) opts.push('Some days it’s hard to get out of bed.', 'I wish someone would just ask how I’m doing.');
+  if (G.stats.health < 30) opts.push('My body isn’t what it used to be.', 'I should really see a doctor.');
+  if (G.money > 1e6) opts.push('Money can’t buy everything. But it helps.');
+  if (G.money < 100 && G.age >= 18) opts.push('How am I going to pay rent this month?');
+  if (p) opts.push(`I should do something nice for ${p.first}.`, `I’m lucky to have ${p.first}.`);
+  if (G.age >= 70) opts.push('Where did all the time go?', 'I hope I’ll be remembered.');
+  if (livingPets().length) opts.push(`${livingPets()[0].name} is the only one who really gets me.`);
+  if (!opts.length) opts.push('Another year. Let’s make it count.');
+  say(`💭 <i>${pick(opts)}</i>`, 'thought');
+}
+
+// ---------- world news ----------
+const WORLD_EVENTS = [
+  { id: 'recession', emoji: '📉', headline: 'Global recession hits. Markets crash and jobs dry up.', mods: { pay: 0.6 }, now: () => { Object.keys(G.invest || {}).forEach(k => { G.invest[k] = Math.round(G.invest[k] * 0.85); }); } },
+  { id: 'boom', emoji: '📈', headline: 'The economy is booming! Stocks hit record highs.', mods: { pay: 1.3 }, now: () => { Object.keys(G.invest || {}).forEach(k => { G.invest[k] = Math.round(G.invest[k] * 1.12); }); } },
+  { id: 'panic', emoji: '😱', headline: 'Metahuman Panic: a viral video sparks fear of hidden supers. Everyone is watching their neighbors.', mods: { sus: 1.5 } },
+  { id: 'parade', emoji: '🎉', headline: 'The city declares Hero Appreciation Day. Parades fill the streets.', now: () => { if (G.super && G.super.alignment) fx(isHero() ? { rep: 5, happy: 4 } : { heat: 6 }); } },
+  { id: 'pandemic', emoji: '😷', headline: 'A nasty virus sweeps the globe. Hospitals are overwhelmed.', mods: { ill: 0.08 }, now: () => { fx({ health: -rand(2, 7) }); } },
+  { id: 'tech', emoji: '🔬', headline: 'Tech breakthrough! Gadgets and electronics are suddenly cheap.', mods: { price: 0.75 } },
+  { id: 'aliens', emoji: '🛸', headline: 'Strange lights over the Pacific. The government says it’s “weather balloons.”', now: () => { if (G.super && isHero()) G.flags.alienHint = true; } },
+  { id: 'sports', emoji: '🏆', headline: `${G ? G.city : 'Your city'}’s team wins the championship! The whole city celebrates.`, now: () => fx({ happy: 5 }) },
+  { id: 'election', emoji: '🗳️', headline: 'Election year! The race is between a pro-hero mayor and a Registration hardliner.', vote: true },
+  { id: 'blackout', emoji: '🌑', headline: 'A massive blackout hits the city for three days. Crime spikes.', now: () => { (G.districts || []).forEach(d => { d.crime = clamp(d.crime + rand(4, 10)); }); } },
+];
+function worldMod(key, def) { const w = G.world; if (!w || w.age !== G.age) return def; const e = WORLD_EVENTS.find(x => x.id === w.id); return e && e.mods && e.mods[key] != null ? e.mods[key] : def; }
+function worldNews() {
+  if (G.age < 6 || !chance(0.35)) return;
+  const e = pick(WORLD_EVENTS.filter(x => !G.world || x.id !== G.world.id));
+  G.world = { id: e.id, age: G.age };
+  const headline = e.id === 'sports' ? `${G.city}’s team wins the championship! The whole city celebrates.` : e.headline;
+  say(`${e.emoji} <b>World news:</b> ${headline}`, 'world');
+  if (e.now) e.now();
+  if (e.vote && G.age >= 18) {
+    popup({ emoji: '🗳️', title: 'Election Day', text: `${headline}<br><br>Who gets your vote?`, choices: [
+      { label: '🦸 The pro-hero mayor', fn: () => { const won = chance(0.55); say(`🗳️ You voted for the pro-hero mayor. ${won ? 'They won!' : 'They lost.'}`); if (won && G.super) { if (isHero()) fx({ rep: 3 }); G.super.heat = clamp(G.super.heat - 10); } } },
+      { label: '📜 The Registration hardliner', fn: () => { const won = chance(0.45); say(`🗳️ You voted for the Registration hardliner. ${won ? 'They won.' : 'They lost.'}`); if (won && G.super) fx({ heat: 8 }); } },
+      { label: '🛋️ Stay home', fn: () => say('🗳️ You skipped the election.') },
+    ] });
+  }
+}
+
+// ---------- phone ----------
+const MSG_TYPES = {
+  parent: {
+    make: () => { const p = pick(living('Parent')); return p && G.age >= 12 && { pid: p.id, from: p.first, emoji: '👪', text: pick(['Call your mother! 😘', 'Are you eating enough??', 'Proud of you, kiddo.', 'Your father wants to know how to send a gif.', 'Come home for dinner this weekend?']) }; },
+    replies: (m, p) => [
+      { label: '❤️ Love you too', fn: () => { p.bond = clamp(p.bond + 6); fx({ happy: 2 }); } },
+      { label: '😑 Busy, talk later', fn: () => { p.bond = clamp(p.bond - 4); } },
+      { label: '💸 Could you send some money?', show: () => G.age < 30, fn: () => { if (chance(p.bond / 140)) { const a = rand(50, 500) * Math.max(1, G.familyWealth); G.money += a; toast(`${p.first} sent ${money(a)}`); } else { p.bond = clamp(p.bond - 3); toast(`${p.first}: “Get a job!”`); } } },
+    ],
+  },
+  friend: {
+    make: () => { const f = pick(G.people.filter(p => p.alive && /^(Best )?Friend$/.test(p.role))); return f && { pid: f.id, from: f.first, emoji: TRAIT_EMOJI[f.trait] || '🙂', text: pick(['Party at my place Saturday. You in?', 'Wanna hang out this weekend?', 'Dude. You will NOT believe what just happened.', 'Movie night?? 🍿', 'I need to vent. Can you talk?']) }; },
+    replies: (m, p) => [
+      { label: '🙌 I’m in!', fn: () => { p.bond = clamp(p.bond + 8); fx({ happy: 5 }); say(`📱 You hung out with ${p.first} after they texted you.`); } },
+      { label: '🙏 Can’t, sorry', fn: () => { p.bond = clamp(p.bond - 3); } },
+    ],
+  },
+  partner: {
+    make: () => { const p = partner(); return p && { pid: p.id, from: p.first, emoji: '💕', text: pick(['Thinking about you ❤️', 'Date night tonight?', 'Miss you already', 'Guess what I’m making for dinner 😏', 'Are we okay? You’ve been distant lately.']) }; },
+    replies: (m, p) => [
+      { label: '❤️ Me too', fn: () => { p.bond = clamp(p.bond + 8); fx({ happy: 3 }); } },
+      { label: '🍷 Plan a romantic date ($150)', show: () => G.money >= 150, fn: () => { G.money -= 150; p.bond = clamp(p.bond + 14); fx({ happy: 6 }); say(`🍷 You took ${p.first} on a romantic date.`); } },
+      { label: '😴 Leave them on read', fn: () => { p.bond = clamp(p.bond - 6); } },
+    ],
+  },
+  nemesis: {
+    make: () => { const s = G.super; const n = s && s.nemesis; return n && n.alive && !n.jailed && { from: n.name, emoji: '😈', text: pick([`Enjoy your peace while it lasts, ${s.alias}.`, `I know where you sleep. Do you know where I sleep?`, `Our next fight will be our last.`, `Tick tock, ${s.alias}.`, `I let you win last time. Never again.`]) }; },
+    replies: () => {
+      const s = G.super, n = s.nemesis;
+      return [
+        { label: '😤 “Bring it on.”', fn: () => { fx({ rep: 2, happy: 2 }); G.flags.taunted = true; } },
+        { label: '📡 Trace the signal', fn: () => {
+          if (chance(G.stats.smarts / 130 + (s.power === 'techno' ? 0.4 : 0))) {
+            say(`📡 You traced ${n.name}’s message and ambushed them.`, 'super');
+            if (s.energy > 0) { s.energy--; fightNemesis(`You traced the message to an abandoned subway station. ${n.name} wasn’t expecting you.`); }
+            else result('📡', 'Found Them', `You traced the signal, but you’re too exhausted to fight this year.`);
+          } else toast('The signal bounced through 40 countries. Lost it.');
+        } },
+        { label: '🚫 Block number', fn: () => {} },
+      ];
+    },
+  },
+  boss: {
+    make: () => G.job && !G.job.pt && { from: 'Your boss', emoji: '💼', text: pick(['Need you in early tomorrow.', 'Can you stay late Friday?', 'Great work on that project.', 'We need to talk. My office. Now.']) },
+    replies: () => [
+      { label: '👍 On it!', fn: () => { G.job.perf = clamp(G.job.perf + 6); fx({ happy: -2 }); } },
+      { label: '🙄 Leave me alone', fn: () => { G.job.perf = clamp(G.job.perf - 8); } },
+    ],
+  },
+  fan: {
+    make: () => { const s = G.super; return s && s.alignment && s.rep >= 25 && { from: `${s.alias} fan account`, emoji: isHero() ? '🤩' : '😨', text: isHero() ? pick([`OMG ${s.alias} saved my grandma!!! THANK YOU`, `My son dressed as ${s.alias} for Halloween 😭`, `${s.alias} if you see this I love you`]) : pick([`${s.alias} please don’t hurt my family`, `Why are you doing this, ${s.alias}?`, `${s.alias} is honestly iconic tho`]) }; },
+    replies: () => [
+      { label: `✍️ Reply as ${G.super.alias}`, fn: () => { fx({ happy: 4, rep: 1, sus: 3 }); say(`📱 You secretly replied to a fan as ${esc(G.super.alias)}. It went viral.`); } },
+      { label: 'Ignore', fn: () => {} },
+    ],
+  },
+  henchman: {
+    make: () => { const s = G.super; return s && !isHero() && s.sidekick && { from: s.sidekick.name, emoji: '🫡', text: pick(['Boss, the cops are sniffin’ around the lair.', 'Boss, I think someone followed me.', 'Boss can I get a raise. Asking for me.']) }; },
+    replies: () => [
+      { label: '🕶️ Lay low for a while', fn: () => { G.super.heat = clamp(G.super.heat - 8); } },
+      { label: '💵 Bribe the cops ($20,000)', show: () => G.money >= 20000, fn: () => { G.money -= 20000; G.super.heat = clamp(G.super.heat - 20); } },
+      { label: '😠 Stop bothering me', fn: () => {} },
+    ],
+  },
+  sibling: {
+    make: () => { const p = pick(living('Sibling')); return p && G.age >= 12 && { pid: p.id, from: p.first, emoji: '🧑‍🤝‍🧑', text: pick(['Remember when we were kids? Miss you.', 'Mom is driving me crazy.', 'Can I borrow your car this weekend?', 'Happy birthday nerd 🎂']) }; },
+    replies: (m, p) => [
+      { label: '🥹 Miss you too', fn: () => { p.bond = clamp(p.bond + 7); } },
+      { label: '🙃 Whatever', fn: () => { p.bond = clamp(p.bond - 4); } },
+    ],
+  },
+  spam: {
+    make: () => G.age >= 14 && { from: 'Unknown', emoji: '📢', text: pick(['CONGRATULATIONS! You’ve won a FREE cruise! Reply YES to claim!', 'Your package could not be delivered. Click here to pay $1.99 shipping.', 'Hot singles in your area want to meet YOU']) },
+    replies: () => [
+      { label: '😃 YES!!', fn: () => { const loss = Math.min(G.money, rand(100, 2500)); G.money -= loss; say(`📱 You fell for a scam text and lost ${money(loss)}.`, 'bad'); toast(`Scammed! -${money(loss)}`); } },
+      { label: '🗑️ Delete', fn: () => {} },
+    ],
+  },
+  quest: {
+    make: () => null, // created by quests.js
+    replies: (m) => [
+      { label: '📖 “I’m listening.”', fn: () => startQuest(m.quest) },
+      { label: '🗑️ Ignore it', fn: () => {} },
+    ],
+  },
+};
+
+function sendMessage(type, data) {
+  G.inbox = G.inbox || [];
+  G.inbox.unshift({ id: Date.now() + rand(0, 99999), type, read: false, age: G.age, ...data });
+  if (G.inbox.length > 20) G.inbox.length = 20;
+}
+function phoneYearly() {
+  if (G.age < 10 || G.prison > 0) return;
+  const types = Object.keys(MSG_TYPES).filter(t => t !== 'quest');
+  const n = rand(1, 3);
+  for (let i = 0; i < n; i++) {
+    const t = pick(types);
+    const m = MSG_TYPES[t].make();
+    if (m) sendMessage(t, m);
+  }
+}
+function unreadCount() { return (G.inbox || []).filter(m => !m.read).length; }
+function openMessage(m) {
+  m.read = true;
+  const T = MSG_TYPES[m.type];
+  const p = m.pid ? G.people.find(x => x.id === m.pid) : null;
+  if (m.pid && (!p || !p.alive)) { m.answered = true; return result('📱', m.from, `<div class="sms">${esc(m.text)}</div><br><i>You never got the chance to reply.</i>`); }
+  const replies = m.answered ? [] : T.replies(m, p).filter(r => !r.show || r.show());
+  popup({ emoji: m.emoji, title: m.from, cls: 'phone',
+    text: `<div class="sms">${esc(m.text)}</div><small class="muted">Age ${m.age}</small>`,
+    choices: (m.answered ? [] : replies.map(r => ({ label: r.label, fn: () => { m.answered = true; r.fn(); } }))).concat([{ label: m.answered ? 'Close' : 'Later' }]) });
+}
+function phonePanel() {
+  const box = G.inbox || [];
+  if (!box.length) return h('p', { class: 'muted' }, G.age < 10 ? 'You’re too young for a phone.' : 'No messages yet.');
+  return h('div', { class: 'inbox' }, box.map(m => h('button', { class: `msg ${m.read ? '' : 'unread'} ${m.type === 'quest' ? 'quest' : ''}`, onclick: () => openMessage(m) },
+    h('span', { class: 'msg-emoji' }, m.emoji),
+    h('span', { class: 'msg-main' }, h('b', {}, m.from), h('small', {}, m.text)),
+    h('span', { class: 'msg-age' }, m.answered ? '✓' : m.read ? '' : '●'))));
+}
+
+// ---------- super romance ----------
+SUPER_EVENTS.push({
+  id: 'superdate', w: 2, cond: () => !partner() && G.age >= 18 && G.age <= 55,
+  fire() {
+    const s = G.super;
+    const forbidden = chance(0.35);
+    const side = forbidden ? (isHero() ? 'villain' : 'hero') : s.alignment;
+    const c = randomPerson(null, Math.max(18, G.age - 6), G.age + 6, 'Partner');
+    const a = pick(side === 'hero' ? NPC_HEROES : NPC_VILLAINS).replace(/^(Captain|Lady|Doctor|Baron|Madame|Professor|Miss|The) /, '');
+    const alias2 = `${pick(side === 'hero' ? ['Star', 'Silver', 'Night', 'Blue', 'Crimson'] : ['Black', 'Venom', 'Shadow', 'Scarlet', 'Iron'])} ${a.split(' ').pop()}`;
+    popup({ emoji: forbidden ? '💔' : '💘', title: forbidden ? 'Forbidden Love' : 'Sparks on the Rooftop',
+      text: forbidden
+        ? `Mid-battle, the ${side} <b>${alias2}</b> has you pinned… and hesitates. Your eyes meet. Later, a note appears in your pocket: <i>“Same rooftop. Tomorrow. Come alone.”</i> Underneath the mask is <b>${c.first}</b>.`
+        : `During a rooftop showdown, the ${side} <b>${alias2}</b> fights back-to-back with you. Afterward, they pull off their mask: <b>${c.first}</b>. “Coffee sometime? Out of costume?”`,
+      choices: [
+        { label: '💘 Say yes', fn: () => {
+          const p = addPerson({ ...c, bond: rand(60, 85), knows: true, superAlias: alias2, superSide: side });
+          fx({ happy: 12 });
+          say(`💕 You started dating ${fullName(p)} — secretly the ${side} ${alias2}.`, 'super');
+        } },
+        { label: '🙅 Keep it professional', fn: () => say(`You turned down ${alias2}.`) },
+      ] });
+  },
+});
+function superPartner() { const p = partner(); return p && p.superAlias ? p : null; }
+
+// ---------- atmosphere ----------
+function updateAtmosphere() {
+  const s = G && G.super;
+  document.body.dataset.mood = !G ? '' : G.prison > 0 ? 'prison' : s && s.alignment && !s.retired ? s.alignment : G.age < 13 ? 'child' : '';
+}
+
+// ---------- background music ----------
+let music = null;
+function musicOn() { try { return localStorage.getItem('mysuperlife.music') === 'on'; } catch (e) { return false; } }
+function setMusic(on) { try { localStorage.setItem('mysuperlife.music', on ? 'on' : 'off'); } catch (e) { /* ignore */ } on ? startMusic() : stopMusic(); }
+function startMusic() {
+  if (music) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const master = audioCtx.createGain(); master.gain.value = 0.5; master.connect(audioCtx.destination);
+    let step = 0;
+    const tick = () => {
+      const mood = document.body.dataset.mood;
+      const scale = mood === 'villain' ? [220, 247, 262, 294, 330, 349, 415, 440] : mood === 'hero' ? [262, 294, 330, 392, 440, 523, 587, 659] : mood === 'prison' ? [196, 208, 233, 262, 277] : [294, 330, 349, 392, 440, 494, 523];
+      const t = audioCtx.currentTime;
+      if (step % 8 === 0) {
+        [scale[0] / 2, scale[2] / 2].forEach(f => {
+          const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+          o.type = 'sine'; o.frequency.value = f;
+          g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.025, t + 1); g.gain.linearRampToValueAtTime(0.0001, t + 4.6);
+          o.connect(g); g.connect(master); o.start(t); o.stop(t + 4.8);
+        });
+      }
+      if (chance(0.6)) {
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = 'triangle'; o.frequency.value = pick(scale);
+        g.gain.setValueAtTime(0.018, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+        o.connect(g); g.connect(master); o.start(t); o.stop(t + 1.2);
+      }
+      step++;
+    };
+    music = { timer: setInterval(tick, 600), master };
+  } catch (e) { music = null; }
+}
+function stopMusic() {
+  if (!music) return;
+  clearInterval(music.timer);
+  try { music.master.disconnect(); } catch (e) { /* ignore */ }
+  music = null;
+}
+// Browsers only allow audio after a tap, so resume music on the first interaction.
+document.addEventListener('pointerdown', () => { if (musicOn() && !music) startMusic(); }, { once: true });
+
+// Story arcs: multi-year quests that begin with a mysterious text message.
+// Each step can be attempted once per year. A choice either rolls a check (test) or starts a battle (duel).
+
+const stealthBonus = () => (G.super ? (1 - pw('stealth', 1)) * 0.4 : 0);
+
+const QUESTS = [
+  {
+    id: 'conspiracy', emoji: '🕵️', title: 'The OmniCorp Conspiracy',
+    cond: () => isHero() && G.super.rep >= 15 && !G.super.retired,
+    hook: 'OmniCorp isn’t what it seems. Check Pier 9 tonight. Come alone. —A friend',
+    steps: [
+      { title: 'The Shipment at Pier 9', text: 'Crates stamped OMNICORP are being loaded onto a cargo ship in the dead of night. One of them is humming.', choices: [
+        { label: '🔦 Sneak closer', test: () => 0.45 + G.stats.smarts / 300 + stealthBonus(), win: 'You pry open a crate: power-dampening collars. Thousands of them.', lose: 'A guard’s flashlight sweeps across you. You escape, but the ship is gone.' },
+        { label: '💥 Storm the dock', duel: 35, enemy: { name: 'OmniCorp Security', power: 'marksman' }, win: 'You smash through the guards and crack open a crate: power-dampening collars. Thousands of them.' },
+      ] },
+      { title: 'Inside OmniCorp Tower', text: 'You need proof of who ordered the collars. The files are on the 88th floor of OmniCorp Tower.', choices: [
+        { label: '💻 Hack the servers', test: () => G.stats.smarts / 120 + (G.super.power === 'techno' || G.super.power === 'genius' ? 0.4 : 0), win: 'You’re in. The order was signed by the CEO himself.', lose: 'Firewall. Alarms. You barely get out.' },
+        { label: '🪟 Break in through a window', duel: 45, enemy: { name: 'Tower Defense Drones', power: 'energy' }, win: 'You fight past the drones and download everything.' },
+      ] },
+      { title: 'Victor Kane', text: 'CEO Victor Kane plans to collar every super on Earth — then auction them to the highest bidder. He’s giving a speech tonight.', choices: [
+        { label: '📰 Leak the files to the Daily Beacon', test: () => 0.65, win: 'The story breaks worldwide. Kane’s stock collapses — and he’s furious.', lose: 'Kane’s lawyers kill the story before it runs.', fx: { rep: 6 } },
+        { label: '🤜 Confront Kane on stage', duel: 55, enemy: { name: 'Victor Kane (power armor)', power: 'strength' }, win: 'Kane’s power armor shatters on live TV. He flees to his factory.' },
+      ] },
+      { title: 'The Collar Factory', text: 'Kane’s factory in the Harbor District is about to start shipping. This is it.', choices: [
+        { label: '⚔️ Destroy the factory', duel: 65, enemy: { name: 'Victor Kane’s Mega-Mech', power: 'energy' }, win: 'The factory explodes behind you as you walk away.' },
+      ] },
+    ],
+    reward: { rep: 20, happy: 20, money: 250000 },
+    ending: 'Victor Kane is in handcuffs and every collar is scrap metal. Every super on Earth owes you, and most will never know it.',
+  },
+  {
+    id: 'heist', emoji: '💰', title: 'The Heist of the Century',
+    cond: () => G.super && G.super.alignment === 'villain' && G.super.rep >= 15 && !G.super.retired,
+    hook: 'The Federal Gold Reserve. $25 million in bars. I have a plan — I just need someone with your… talents.',
+    steps: [
+      { title: 'Assemble the Crew', text: 'A job this big needs a crew. Who do you bring?', choices: [
+        { label: '💻 A hacker ($50,000)', cost: 50000, test: () => 1, win: 'Zero Cool is in. The cameras are as good as yours.' },
+        { label: '🚗 A getaway driver ($30,000)', cost: 30000, test: () => 1, win: 'Wheels Malone is in. Nobody outruns Wheels.' },
+        { label: '😏 Do it alone', test: () => 0.5, win: 'Who needs a crew? Fewer people to split it with.', lose: 'Without a crew, the plan falls apart. Back to the drawing board.' },
+      ] },
+      { title: 'Case the Reserve', text: 'You spend weeks posing as a tourist, mapping guard rotations and camera blind spots.', choices: [
+        { label: '📝 Study the guard schedule', test: () => G.stats.smarts / 110 + 0.1, win: 'There’s a four-minute gap at 3:12 a.m. That’s your window.', lose: 'A guard recognizes you from last week. You have to lie low and try again.' },
+        { label: '🧠 Read a guard’s mind', show: () => pw('wipe'), test: () => 0.95, win: 'You pull the vault codes right out of the head guard’s memory.' },
+      ] },
+      { title: 'Steal the Vault Blueprints', text: 'The blueprints are locked in the city planning office.', choices: [
+        { label: '🥷 Slip in unseen', test: () => 0.4 + stealthBonus() + (G.super.power === 'thief' ? 0.4 : 0), win: 'In and out in ninety seconds. Nobody saw a thing.', lose: 'The night janitor walks in. You bolt.' },
+        { label: '💥 Take them by force', duel: 45, enemy: { name: 'Security Chief Hayes', power: 'marksman' }, win: 'Hayes won’t be waking up for a while. The blueprints are yours.' },
+      ] },
+      { title: 'The Heist', text: '3:12 a.m. The vault door swings open… and a hero is standing inside, waiting for you.', choices: [
+        { label: '⚔️ Fight your way to the gold', duel: 70, enemy: { name: 'Captain Valor', power: 'strength' }, win: 'Captain Valor goes down. You load the truck with gold bars and vanish into the night.' },
+      ] },
+    ],
+    reward: { money: 25000000, rep: 20, heat: 35, happy: 20 },
+    ending: 'Twenty-five million dollars in gold, and not a single fingerprint. They’re already calling it the heist of the century.',
+  },
+  {
+    id: 'prometheus', emoji: '🧬', title: 'Project Prometheus',
+    cond: () => G.super && G.super.alignment && G.super.level >= 20 && G.age >= 16,
+    hook: 'Your powers weren’t an accident. Ask about Project Prometheus.',
+    steps: [
+      { title: 'Where It All Began', text: () => `You return to the place of your origin — “${G.super.origin}.” Something about it feels different now.`, choices: [
+        { label: '🔍 Search for clues', test: () => 0.55 + G.stats.smarts / 250, win: 'Under a loose panel you find a badge: “Dr. Elena Voss — Project Prometheus.”', lose: 'Nothing but dust and bad memories. Maybe next year.' },
+      ] },
+      { title: 'Dr. Elena Voss', text: 'Dr. Voss lives alone in a cabin in the mountains. She goes pale when she sees you.', choices: [
+        { label: '🙂 Ask her gently', test: () => 0.35 + G.stats.smarts / 200 + G.stats.looks / 400, win: 'She cries. “You were chosen. Hundreds were. Only a few survived.” She tells you where the vault is.', lose: 'She slams the door. “I don’t know what you’re talking about.”' },
+        { label: '😠 Threaten her', test: () => 0.55, win: 'She gives you the location of the Prometheus vault — and begs you not to go.', lose: 'She hits a panic button and vanishes through a trapdoor.' },
+        { label: '🧠 Read her mind', show: () => pw('wipe'), test: () => 0.95, win: 'Her memories flood into you: the lab, the experiments, the vault under the old observatory.' },
+      ] },
+      { title: 'The Prometheus Vault', text: 'Beneath the old observatory, a towering machine wakes up as you enter. “SUBJECT DETECTED.”', choices: [
+        { label: '⚔️ Fight the guardian', duel: 50, enemy: { name: 'Prometheus Sentinel', power: 'energy' }, win: 'The Sentinel collapses. Behind it, a door marked with your name.' },
+      ] },
+      { title: 'The Truth', text: 'The files say you were seeded with power as a child. You were Subject 17. There’s a machine here that could unlock everything you were meant to be.', choices: [
+        { label: '⚡ Use the machine', test: () => 1, win: 'Energy tears through you. When it stops, you’re stronger than you ever imagined.', fx: { level: 12, control: 5 } },
+        { label: '🔥 Burn it all down', test: () => 1, win: 'You destroy the machine and every file. No one will ever be Subject 18.', fx: { control: 25, happy: 10, rep: 5 } },
+      ] },
+    ],
+    reward: { happy: 15 },
+    ending: 'You finally know where your powers came from. Whatever you are, you get to decide what it means.',
+  },
+  {
+    id: 'lighthouse', emoji: '🗼', title: 'The Blackwater Lighthouse',
+    cond: () => G.age >= 10 && G.age <= 45,
+    hook: 'Blackwater Lighthouse. Midnight. Bring a flashlight. The captain’s gold is real.',
+    steps: [
+      { title: 'Lights in the Lighthouse', text: 'The lighthouse has been abandoned for sixty years. Tonight, its lamp is glowing.', choices: [
+        { label: '🔦 Go alone at midnight', test: () => 0.6, win: 'Inside, the lamp is cold, but a trapdoor in the floor is open.', lose: 'You lose your nerve halfway up the stairs. Maybe next year.' },
+        { label: '👯 Bring a friend', show: () => G.people.some(p => p.alive && /^(Best )?Friend$/.test(p.role)), test: () => 0.9, win: 'Together you find a trapdoor hidden under an old rug.', after: () => { const f = pick(G.people.filter(p => p.alive && /^(Best )?Friend$/.test(p.role))); f.bond = clamp(f.bond + 10); } },
+      ] },
+      { title: 'The Captain’s Journal', text: 'Below the trapdoor is a dusty cabin and a journal written in faded ink and strange symbols.', choices: [
+        { label: '📖 Decode the journal', test: () => G.stats.smarts / 100 + 0.15, win: 'The captain hid his gold in a sea cave. The entrance is sealed by a riddle.', lose: 'The symbols make your head spin. You’ll come back to it.' },
+      ] },
+      { title: 'The Riddle', text: 'Carved into the cave door: <i>“I have keys but open no locks. I have space but no room. You can enter, but never go inside.”</i>', choices: [
+        { label: '🗝️ “A prison.”', test: () => 0, lose: 'The door doesn’t budge. Wrong answer. You’ll have to think about it.' },
+        { label: '⌨️ “A keyboard.”', test: () => 1, win: 'With a deep groan, the stone door rolls aside.' },
+        { label: '🎹 “A piano.”', test: () => 0, lose: 'Close… but the door stays shut.' },
+      ] },
+      { title: 'The Sea Cave', text: 'The tide is coming in fast. The treasure chest is on a ledge across a flooded chamber.', choices: [
+        { label: '🏊 Swim for it', test: () => G.stats.health / 110, win: 'You haul the chest back just as the water reaches the ceiling.', lose: 'The current drags you back. You barely make it out.', failHurt: [5, 15] },
+        { label: '⚡ Use your powers', show: () => G.super && G.super.alignment, test: () => 0.95, win: 'You make it look easy.', fx: { sus: 4 } },
+      ] },
+    ],
+    reward: { money: 350000, happy: 20 },
+    ending: 'The chest is full of Spanish gold coins. The captain’s legend was true — and now it’s yours.',
+  },
+];
+
+function qState(id) { G.quests = G.quests || {}; return G.quests[id]; }
+function activeQuests() { return QUESTS.filter(q => { const s = qState(q.id); return s && !s.done; }); }
+function questsDone() { return QUESTS.filter(q => { const s = qState(q.id); return s && s.done; }).length; }
+
+// Yearly: maybe a stranger texts you to begin a new story.
+function questYearly() {
+  if (G.prison > 0 || activeQuests().length >= 2) return;
+  const open = QUESTS.filter(q => !qState(q.id) && q.cond());
+  if (!open.length || !chance(0.3)) return;
+  if ((G.inbox || []).some(m => m.type === 'quest' && !m.answered)) return;
+  const q = pick(open);
+  sendMessage('quest', { quest: q.id, from: 'Unknown number', emoji: '❓', text: q.hook });
+  say('📱 You got a strange text from an unknown number.', 'hint');
+}
+
+function startQuest(id) {
+  const q = QUESTS.find(x => x.id === id);
+  if (!q || qState(id)) return;
+  G.quests[id] = { step: 0, done: false, started: G.age };
+  say(`📖 A new story begins: <b>${q.title}</b>.`, 'quest');
+  runQuestStep(q);
+}
+
+function runQuestStep(q) {
+  const st = qState(q.id);
+  if (!st || st.done) return;
+  if (G.used['quest_' + q.id]) return toast('You’ve done all you can this year. Age up to continue.');
+  const step = q.steps[st.step];
+  const text = typeof step.text === 'function' ? step.text() : step.text;
+  popup({
+    emoji: q.emoji, title: step.title, cls: 'quest',
+    text: `<div class="quest-tag">${q.title} · Part ${st.step + 1} of ${q.steps.length}</div>${text}`,
+    choices: step.choices.filter(c => !c.show || c.show()).map(c => ({
+      label: c.label, hint: c.cost ? money(c.cost) : c.duel ? 'Battle' : null,
+      fn: () => {
+        if (c.cost && G.money < c.cost) return toast(`You need ${money(c.cost)}.`);
+        G.used['quest_' + q.id] = true;
+        if (c.cost) G.money -= c.cost;
+        if (c.duel) {
+          if (!G.super || !G.super.alignment) return questFail(q, c);
+          duel(c.duel, c.enemy, '', () => questWin(q, c), () => { injure(10, 25, `a fight with ${c.enemy.name}`); questFail(q, c); });
+        } else if (chance(clamp(c.test(), 0, 1))) questWin(q, c);
+        else questFail(q, c);
+      },
+    })).concat([{ label: 'Not now' }]),
+  });
+}
+
+function questWin(q, c) {
+  const st = qState(q.id);
+  if (c.fx) fx(c.fx);
+  if (c.after) c.after();
+  st.step++;
+  if (st.step >= q.steps.length) {
+    st.done = true; st.finished = G.age;
+    fx(q.reward);
+    say(`📖 You completed <b>${q.title}</b>!`, 'quest');
+    popup({ emoji: '🏆', title: q.title, cls: 'quest', text: `${c.win}<br><br><b>The End.</b> ${q.ending}${fxSummary(q.reward)}`, choices: [{ label: 'What a story' }] });
+  } else {
+    say(`${q.emoji} ${q.title}: ${c.win}`, 'quest');
+    popup({ emoji: q.emoji, title: 'Success', cls: 'quest', text: `${c.win}<br><br><i>To be continued… (Part ${st.step + 1} next year)</i>`, choices: [{ label: 'Continue' }] });
+  }
+}
+function questFail(q, c) {
+  if (c.failHurt) { const d = rand(c.failHurt[0], c.failHurt[1]); fx({ health: -d }); G.lastInjury = 'an accident'; }
+  const msg = c.lose || 'It didn’t work out this time.';
+  say(`${q.emoji} ${q.title}: ${msg}`);
+  popup({ emoji: '😓', title: 'Setback', cls: 'quest', text: `${msg}<br><br><i>You can try again next year.</i>`, choices: [{ label: 'OK' }] });
+}
+
+function questRows() {
+  return activeQuests().map(q => {
+    const st = qState(q.id);
+    const done = G.used['quest_' + q.id];
+    return row(q.emoji, q.title, done ? 'Continue next year' : `Part ${st.step + 1}/${q.steps.length}: ${q.steps[st.step].title}`, () => runQuestStep(q), { cls: done ? 'done' : 'feature' });
+  });
+}
+
+ACHIEVEMENTS.push(
+  { id: 'story', emoji: '📖', name: 'Storyteller', desc: 'Finish a story arc', test: () => questsDone() >= 1 },
+  { id: 'saga', emoji: '📚', name: 'The Saga', desc: 'Finish 3 story arcs', test: () => questsDone() >= 3 },
+  { id: 'chapter', emoji: '🔖', name: 'Final Chapter', desc: 'Reach Chapter 6 of your life', test: () => G.age >= 70 },
+  { id: 'powercouple', emoji: '💞', name: 'Power Couple', desc: 'Date a fellow super', test: () => G.people.some(p => p.alive && p.superAlias && ['Partner', 'Spouse'].includes(p.role)) },
+);
 
 // Rendering, panels, popups, start & death screens.
 
@@ -3688,7 +4324,8 @@ function popup(spec) { Q.push(spec); if (!current) nextModal(); }
 
 function nextModal() {
   const root = $('#modal');
-  if (!G || !G.alive) Q.length = 0;
+  // After death only screens meant for it (your story, the Hall of Legends) may open.
+  if (!G || !G.alive) { const keep = Q.filter(x => x.always); Q.length = 0; Q.push(...keep); }
   if (!Q.length && G && G.alive) { checkMoves(); }
   if (!Q.length) {
     current = null;
@@ -3721,6 +4358,7 @@ function nextModal() {
   root.replaceChildren(card);
   if (root.hidden) sfx('pop');
   root.hidden = false;
+  if (spec.after) spec.after(card);
   if (input) setTimeout(() => input.focus(), 50);
 }
 
@@ -3752,27 +4390,38 @@ function occupation() {
 }
 function avatar() {
   const m = G.gender === 'm';
-  if (G.age < 3) return '👶';
-  if (G.age < 13) return m ? '👦' : '👧';
-  if (G.age < 60) return m ? '👨' : '👩';
-  return m ? '👴' : '👵';
+  const k = G.skin || '';
+  if (G.age < 3) return '👶' + k;
+  if (G.age < 13) return (m ? '👦' : '👧') + k;
+  if (G.age < 60) return (m ? '👨' : '👩') + k;
+  return (m ? '👴' : '👵') + k;
 }
+let animatedAge = null;
 
 function render() {
   if (!G) return;
   const s = G.super;
   $('#avatar').textContent = avatar();
   $('#name').textContent = `${G.first} ${G.last}`;
-  $('#sub').innerHTML = `Age ${G.age} · ${esc(occupation())}` + (s ? ` · <span class="badge ${s.alignment || ''}">${s.alignment === 'hero' ? '🦸' : '🦹'} ${esc(s.alias || '???')}</span>` : '');
+  $('#sub').innerHTML = `Age ${G.age} · ${esc(occupation())}` + (s ? ` · <span class="badge ${s.alignment || ''}">${s.alignment === 'hero' ? '🦸' : '🦹'}${G.skin || ''} ${esc(s.alias || '???')}</span>` : '');
+  updateAtmosphere();
+  const unread = unreadCount();
+  $('#phone-badge').textContent = unread || '';
+  $('#phone-badge').hidden = !unread;
   $('#money').textContent = money(G.money);
   $('#money').classList.toggle('neg', G.money < 0);
 
   // log
   const log = $('#log');
   const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
-  log.replaceChildren(...G.log.map(y => h('div', { class: 'year' },
-    h('div', { class: 'year-age' }, y.age === 0 ? 'Born' : `Age ${y.age}`),
-    y.lines.map(l => h('p', { class: l.c || '', html: l.t })))));
+  const fresh = animatedAge !== G.age;
+  animatedAge = G.age;
+  log.replaceChildren(...G.log.map((y, yi) => {
+    const isNew = fresh && yi === G.log.length - 1;
+    return h('div', { class: `year ${isNew ? 'fresh' : ''}` },
+      h('div', { class: 'year-age' }, y.age === 0 ? 'Born' : `Age ${y.age}`),
+      y.lines.map((l, i) => h('p', { class: l.c || '', html: l.t, style: isNew ? `animation-delay:${0.12 + i * 0.14}s` : null })));
+  }));
   if (atBottom || renderScrollPending) { log.scrollTop = log.scrollHeight; renderScrollPending = false; }
 
   // stats
@@ -3819,8 +4468,8 @@ function openSheet(name) {
 function closeSheet() { currentSheet = null; $('#sheet').hidden = true; }
 
 function renderSheet() {
-  const titles = { career: '💼 Occupation', people: '❤️ Relationships', activities: '🎯 Activities', powers: '⚡ Powers', shop: '🛍️ Shopping', profile: '🪪 Profile' };
-  const body = { career: careerPanel, people: peoplePanel, activities: activitiesPanel, powers: powersPanel, shop: shopPanel, profile: profilePanel }[currentSheet]();
+  const titles = { career: '💼 Occupation', people: '❤️ Relationships', activities: '🎯 Activities', powers: '⚡ Powers', shop: '🛍️ Shopping', profile: '🪪 Profile', phone: '📱 Messages' };
+  const body = { career: careerPanel, people: peoplePanel, activities: activitiesPanel, powers: powersPanel, shop: shopPanel, profile: profilePanel, phone: phonePanel }[currentSheet]();
   const scroller = $('#sheet-body');
   const top = scroller.scrollTop;
   $('#sheet-title').textContent = titles[currentSheet];
@@ -3885,7 +4534,7 @@ function peoplePanel() {
     G.age >= 5 ? row('🐾', 'Adopt a pet', 'Visit the animal shelter', actAdoptPet) : null);
   return h('div', {}, top, pets, groups.length ? groups.map(([r, list]) => section(names[r],
     list.sort((a, b) => b.alive - a.alive).map(p => row(personEmoji(p), fullName(p),
-      p.alive ? `${roleLabel(p)} · Age ${p.age}${p.trait ? ` · ${TRAIT_EMOJI[p.trait]} ${p.trait}` : ''} · ❤️ ${p.bond}%${G.super && !G.super.exposed && p.knows ? ' · 🤫 knows' : ''}` : `${roleLabel(p)} · Deceased`,
+      p.alive ? `${roleLabel(p)}${p.superAlias ? ` · 🦸 ${p.superAlias}` : ''} · Age ${p.age}${p.trait ? ` · ${TRAIT_EMOJI[p.trait]} ${p.trait}` : ''} · ❤️ ${p.bond}%${G.super && !G.super.exposed && p.knows ? ' · 🤫 knows' : ''}` : `${roleLabel(p)} · Deceased`,
       () => personActions(p), { disabled: !p.alive, why: `${p.first} has passed away.` }))))
     : h('p', { class: 'muted' }, 'You don’t have anyone in your life right now.'));
 }
@@ -3901,6 +4550,7 @@ function activitiesPanel() {
   if (a < 3) return h('p', { class: 'muted' }, 'You’re a baby. Your only activity is napping. Tap Age to grow up!');
   const adv = ADVENTURES.filter(x => a >= x.min);
   return h('div', {},
+    activeQuests().length ? section('📖 Your Stories', questRows()) : null,
     section('Shopping', row('🛍️', 'Go shopping', 'Clothes, cars, homes and more', () => openSheet('shop'), { cls: 'feature' })),
     adv.length ? section('Adventures', adv.map(x => row(x.emoji, x.name, G.used['adv_' + advKey(x)] ? 'Done this year' : x.sub, x.fn, { cls: G.used['adv_' + advKey(x)] ? 'done' : '' }))) : null,
     section('Side Hustles', HUSTLES.filter(x => a >= x.min && (!x.max || a <= x.max)).map(x => row(x.emoji, x.name, G.used['hustle_' + x.id] ? 'Done this year' : `Earn ${money(Math.max(0, x.pay[0]))}–${money(x.pay[1])}`, () => doHustle(x), { cls: G.used['hustle_' + x.id] ? 'done' : '' }))),
@@ -3940,7 +4590,7 @@ function powersPanel() {
   const n = s.nemesis;
   out.append(h('div', { class: `hero-card ${s.alignment}` },
     h('div', { class: 'hc-top' },
-      h('div', { class: 'hc-emoji' }, hero ? '🦸' : '🦹'),
+      h('div', { class: 'hc-emoji' }, (hero ? '🦸' : '🦹') + (G.skin || '')),
       h('div', {},
         h('div', { class: 'hc-name' }, s.alias),
         h('div', { class: 'hc-sub' }, `${hero ? 'Superhero' : 'Supervillain'} · ${tierName(s.level)}${s.retired ? ' · Retired' : ''}${s.ruler ? ' · 🌍 Ruler of Earth' : ''}${s.savedWorld ? ' · 🌍 Savior of Earth' : ''}`),
@@ -3982,6 +4632,7 @@ function powersPanel() {
   }
 
   const pct = d => `${Math.round(winChance(d) * 100)}% success · 1 energy`;
+  if (activeQuests().length) out.append(section('📖 Your Stories', questRows()));
   out.append(section('Missions', hero ? [
     row('🌃', 'Patrol the city', 'Find trouble, save people · 1 energy', actPatrol),
     s.rep >= 10 ? row('🕵️', 'Hunt a supervillain', '1 energy', actHuntVillain) : row('🕵️', 'Hunt a supervillain', 'Need 10 fame', null, { disabled: true, why: 'Get more famous first.' }),
@@ -4032,14 +4683,15 @@ function showStart() {
   const citySel = h('select', { id: 'f-city' }, h('option', { value: '' }, 'Random city'), CITIES.map(c => h('option', { value: c }, c)));
   const first = h('input', { id: 'f-first', placeholder: 'First name (optional)', maxlength: 20 });
   const last = h('input', { id: 'f-last', placeholder: 'Last name (optional)', maxlength: 20 });
+  const skin = h('select', { id: 'f-skin' }, h('option', { value: 'random' }, 'Random look'), SKIN_TONES.map((k, i) => h('option', { value: k }, `${'✋' + k} ${['Classic', 'Light', 'Medium-light', 'Medium', 'Medium-dark', 'Dark'][i]}`)));
   const gender = h('select', { id: 'f-gender' }, h('option', { value: '' }, 'Random gender'), h('option', { value: 'm' }, 'Male'), h('option', { value: 'f' }, 'Female'));
   const begin = opts => { newLife(opts); st.hidden = true; renderScrollPending = true; render(); };
   st.replaceChildren(h('div', { class: 'start-card' },
     h('div', { class: 'logo' }, h('span', {}, 'My'), 'Super', h('span', {}, 'Life')),
     h('p', { class: 'tagline' }, 'Live a whole life. Somewhere before 18, your origin story begins.'),
     hasSave ? h('button', { class: 'big-btn alt', onclick: () => { st.hidden = true; renderScrollPending = true; render(); } }, `▶ Continue as ${G.first} ${G.last} (age ${G.age})`) : null,
-    h('div', { class: 'form' }, first, last, gender, citySel),
-    h('button', { class: 'big-btn', onclick: () => begin({ first: first.value, last: last.value, gender: gender.value, city: citySel.value }) }, '✨ Start New Life'),
+    h('div', { class: 'form' }, first, last, gender, citySel, skin),
+    h('button', { class: 'big-btn', onclick: () => begin({ first: first.value, last: last.value, gender: gender.value, city: citySel.value, skin: skin.value }) }, '✨ Start New Life'),
     h('button', { class: 'big-btn ghost', onclick: () => begin({}) }, '🎲 Random Life'),
     h('button', { class: 'link-btn', onclick: showLegends }, `🏛️ Hall of Legends${(loadMeta().lives || 0) ? ` (${loadMeta().lives})` : ''}`)));
   st.hidden = false;
@@ -4063,7 +4715,7 @@ function showDeath() {
     h('div', { class: 'card-emoji' }, '🪦'),
     h('div', { class: 'ribbon' }, h('span', {}, r.emoji), h('b', {}, r.name), h('small', {}, r.desc)),
     h('h2', {}, `${G.first} ${G.last}`),
-    s && s.alias ? h('div', { class: `badge big ${s.alignment}` }, `${hero ? '🦸' : '🦹'} ${s.alias}`) : null,
+    s && s.alias ? h('div', { class: `badge big ${s.alignment}` }, `${hero ? '🦸' : '🦹'}${G.skin || ''} ${s.alias}`) : null,
     h('p', {}, `Died at age ${G.age} from ${G.cause}.`),
     h('p', { html: legacy }),
     h('div', { class: 'info' },
@@ -4074,6 +4726,7 @@ function showDeath() {
       s && s.nemesis ? h('div', {}, `😈 Nemesis: ${s.nemesis.name}`) : null,
       h('div', {}, `🏆 ${(G.achievements || []).length} achievements · 🎯 ${(G.goals || []).filter(g => g.done).length}/${(G.goals || []).length} life goals`),
       G.generation > 1 ? h('div', {}, `🧬 Generation ${G.generation}`) : null),
+    h('button', { class: 'big-btn story', onclick: showMemoir }, '📖 Read your life story'),
     kids.length ? h('div', { class: 'heirs' }, h('div', { class: 'section-title' }, 'Continue as your child'),
       kids.map(c => h('button', { class: 'big-btn alt', onclick: () => { continueAsChild(c); d.hidden = true; renderScrollPending = true; render(); } }, `${personEmoji(c)} ${c.first}, age ${c.age}`))) : null,
     h('button', { class: kids.length ? 'big-btn ghost' : 'big-btn', onclick: () => { clearSave(); showStart(); } }, '✨ New Life'),
@@ -4089,6 +4742,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (currentSheet === name) closeSheet(); else openSheet(name);
   }));
   $('#sheet-close').addEventListener('click', closeSheet);
+  $('#phone-btn').addEventListener('click', () => { if (currentSheet === 'phone') closeSheet(); else openSheet('phone'); });
   $('#avatar').addEventListener('click', () => { if (currentSheet === 'profile') closeSheet(); else openSheet('profile'); });
   $('#money').addEventListener('click', () => { if (currentSheet === 'shop') closeSheet(); else openSheet('shop'); });
   $('#menu-btn').addEventListener('click', () => popup({
@@ -4096,6 +4750,8 @@ window.addEventListener('DOMContentLoaded', () => {
     choices: [
       { label: '🪪 Profile & achievements', fn: () => openSheet('profile') },
       { label: '🏛️ Hall of Legends', fn: showLegends },
+      { label: '📖 Read your story so far', fn: showMemoir },
+      { label: `🎵 Music: ${musicOn() ? 'On' : 'Off'}`, fn: () => { setMusic(!musicOn()); toast(`Music ${musicOn() ? 'on' : 'off'}`); } },
       { label: `🔊 Sound: ${soundOn() ? 'On' : 'Off'}`, fn: () => { toggleSound(); toast(`Sound ${soundOn() ? 'on' : 'off'}`); } },
       { label: '🔄 Start a new life', fn: () => popup({ emoji: '⚠️', title: 'Are you sure?', text: 'Your current life will be lost forever.', choices: [{ label: 'Yes, start over', fn: () => { clearSave(); showStart(); } }, { label: 'Cancel' }] }) },
       { label: 'Close' },

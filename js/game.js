@@ -22,6 +22,7 @@ function newYearLog() { G.log.push({ age: G.age, lines: [] }); }
 function say(text, cls) {
   const y = G.log[G.log.length - 1];
   y.lines.push(cls ? { t: text, c: cls } : { t: text });
+  if (typeof remember === 'function' && (cls === 'super' || cls === 'quest' || MEMORY_MARKERS.some(m => text.startsWith(m)))) remember(text);
 }
 
 // Apply a bundle of stat changes. Keys: happy health smarts looks money rep sus heat level control
@@ -56,7 +57,7 @@ function randomPerson(gender, minAge, maxAge, role, last) {
   gender = gender || pick(['m', 'f']);
   return {
     first: pick(FIRST_NAMES[gender]), last: last || pick(LAST_NAMES), gender, role,
-    age: rand(minAge, maxAge), looks: rand(10, 100),
+    age: rand(minAge, maxAge), looks: rand(10, 100), skin: pick(SKIN_TONES),
   };
 }
 function roleLabel(p) {
@@ -96,10 +97,11 @@ function newLife(opts = {}) {
   initCity();
   const wealth = pick([0.5, 1, 1, 1, 2, 4]);
   G.familyWealth = wealth;
-  const mom = addPerson({ ...randomPerson('f', 22, 40, 'Parent', last), bond: rand(60, 100) });
-  const dad = addPerson({ ...randomPerson('m', 22, 42, 'Parent', last), bond: rand(50, 100) });
+  G.skin = opts.skin != null && opts.skin !== 'random' ? opts.skin : pick(SKIN_TONES);
+  const mom = addPerson({ ...randomPerson('f', 22, 40, 'Parent', last), bond: rand(60, 100), skin: G.skin });
+  const dad = addPerson({ ...randomPerson('m', 22, 42, 'Parent', last), bond: rand(50, 100), skin: G.skin });
   const sibs = rand(0, 2);
-  for (let i = 0; i < sibs; i++) addPerson({ ...randomPerson(null, 1, 9, 'Sibling', last), bond: rand(40, 90) });
+  for (let i = 0; i < sibs; i++) addPerson({ ...randomPerson(null, 1, 9, 'Sibling', last), bond: rand(40, 90), skin: G.skin });
 
   newYearLog();
   say(`You were born a ${gender === 'm' ? 'boy' : 'girl'} in ${G.city}, a city where people whisper about masked vigilantes on the rooftops.`);
@@ -118,6 +120,7 @@ function ageUp() {
   G.jobOffers = null;
   G.lastInjury = null;
   newYearLog();
+  if (G.age >= 2 && chance(0.45)) innerThought();
 
   yearlyStats();
   peopleTick();
@@ -129,6 +132,10 @@ function ageUp() {
   petsTick();
   illnessTick();
   if (G.super) superYearly();
+  worldNews();
+  focusYearly();
+  phoneYearly();
+  questYearly();
 
   if (naturalDeath()) return;
 
@@ -138,6 +145,7 @@ function ageUp() {
     if (!G.super && G.age >= 3 && chance(0.25)) say(pick(HINTS), 'hint');
     runYearEvents();
   }
+  checkChapter();
   sfx('age');
   if (!isModalOpen()) nextModal();
 }
@@ -307,6 +315,7 @@ function load() {
       G.invest = G.invest || {}; G.conditions = G.conditions || []; G.achievements = G.achievements || [];
       G.generation = G.generation || 1; G.goals = G.goals || pickGoals(); G.flags = G.flags || {};
       if (!G.districts) initCity();
+      G.inbox = G.inbox || []; G.quests = G.quests || {}; G.memories = G.memories || []; if (G.skin == null) G.skin = '';
     }
     return !!(G && G.alive);
   } catch (e) { return false; }

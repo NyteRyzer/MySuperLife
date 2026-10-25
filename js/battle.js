@@ -41,6 +41,30 @@ function checkMoves() {
 // Converts an old-style difficulty number into an enemy combat rating.
 function ratingFor(diff) { return Math.max(10, (diff + 10) / 1.2); }
 
+const HIT_WORDS = ['POW!', 'BAM!', 'WHAM!', 'KRAK!', 'ZAP!', 'THWACK!', 'SMASH!', 'KAPOW!'];
+function backupAlly() {
+  const s = G.super, sp = superPartner();
+  if (sp) return { name: sp.superAlias, text: `${sp.superAlias} swoops in beside you!` };
+  if (s.sidekick) return { name: s.sidekick.name, text: `${s.sidekick.name} charges in to help!` };
+  if (s.team) return { name: s.team.name, text: `${s.team.name} answers the call!` };
+  const pet = livingPets().find(p => p.powered);
+  if (pet) return { name: pet.name, text: `${pet.name} the super ${pet.kind.toLowerCase()} leaps into the fight!` };
+  return null;
+}
+// Comic-book hit bursts and screen shake, applied after the battle card renders.
+function battleFx(B) {
+  return card => {
+    if (B.burst) {
+      const b = document.createElement('div');
+      b.className = `burst ${B.burst.big ? 'big' : ''}`;
+      b.textContent = B.burst.word;
+      card.append(b);
+    }
+    if (B.hurt) card.classList.add('shake');
+    B.burst = null; B.hurt = false;
+  };
+}
+
 function hpBar(label, v, cls) {
   return `<div class="hp"><span>${esc(label)}</span><div class="hp-bar"><div class="hp-fill ${cls}" style="width:${Math.max(0, v)}%"></div></div><b>${Math.max(0, Math.round(v))}</b></div>`;
 }
@@ -61,7 +85,7 @@ function battleTurn(B) {
   const sig = bestMove();
   const p = POWERS[s.power];
   popup({
-    emoji: '⚔️', title: B.turn === 1 ? `VS ${B.enemy.name}` : `Round ${B.turn}`, cls: 'battle', grid: true,
+    emoji: '⚔️', title: B.turn === 1 ? `VS ${B.enemy.name}` : `Round ${B.turn}`, cls: 'battle', grid: true, after: battleFx(B),
     text: `${B.turn === 1 && B.intro ? `<p>${B.intro}</p>` : ''}${B.log ? `<div class="blog">${B.log}</div>` : ''}
       ${hpBar(s.alias, B.you, 'you')}${hpBar(B.enemy.name, B.foe, 'foe')}
       <div class="stam">Stamina ${'⚡'.repeat(B.stamina) || '—'}</div>`,
@@ -71,6 +95,7 @@ function battleTurn(B) {
       { label: '🛡️ Defend', hint: 'Block · +1 stamina', fn: () => playerMove(B, 'defend') },
       { label: `🌟 ${sig ? sig.name : ''}`, hint: 'Signature move', cls: 'sig', show: () => sig && !B.sigUsed, fn: () => playerMove(B, 'sig') },
       { label: '🧰 Gadget', hint: 'Can’t miss', show: () => s.gadgets.length && !B.gadgetUsed, fn: () => playerMove(B, 'gadget') },
+      { label: '📞 Call backup', hint: backupAlly() ? backupAlly().name : '', show: () => backupAlly() && !B.backupUsed, fn: () => playerMove(B, 'backup') },
       { label: '🏃 Flee', hint: 'Escape the fight', show: () => B.canFlee, fn: () => flee(B) },
       { label: '⏩ Auto', hint: 'Skip to the end', fn: () => autoFinish(B) },
     ],
@@ -97,11 +122,15 @@ function playerMove(B, kind) {
     const gid = pick(s.gadgets);
     const g = GADGETS.find(x => x.id === gid);
     dmg = (8 + gadgetBonus()) * r; text = `You hit them with your ${g.name.toLowerCase()}!`;
+  } else if (kind === 'backup') {
+    B.backupUsed = true;
+    const a = backupAlly();
+    dmg = rand(16, 26) * Math.max(0.8, r); text = a.text;
   } else if (kind === 'defend') {
     B.guard = true; B.stamina = Math.min(3, B.stamina + 1); text = 'You brace yourself.';
   }
   B.foe -= Math.round(dmg);
-  if (dmg) sfx('hit');
+  if (dmg) { sfx('hit'); B.burst = { word: kind === 'sig' ? 'KA-BOOOM!' : pick(HIT_WORDS), big: kind === 'sig' || dmg > 22 }; }
   B.log = `${text}${dmg ? ` <b>-${Math.round(dmg)}</b>` : ''}`;
   if (B.foe <= 0) return endBattle(B, true);
   enemyMove(B, r);
@@ -119,6 +148,7 @@ function enemyMove(B, r) {
     text = special && ep ? `${B.enemy.name} unleashes their ${ep.name.toLowerCase()}! <b>-${dmg}</b>` : `${B.enemy.name} hits back. <b>-${dmg}</b>`;
   } else text = `${B.enemy.name} misses!`;
   B.you -= dmg;
+  if (dmg > 0) B.hurt = true;
   B.log += `<br>${text}`;
   B.turn++;
   if (B.you <= 0) return endBattle(B, false);

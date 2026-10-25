@@ -18,7 +18,7 @@ function maxEnergy() { return 3 + pw('energy', 0); }
 function gadgetBonus() { return G.super.gadgets.reduce((t, id) => t + GADGETS.find(g => g.id === id).bonus, 0); }
 function baseBonus() { return G.super.base >= 0 ? BASES[G.super.base].bonus : 0; }
 function teamBonus() { return G.super.team ? G.super.team.bonus : 0; }
-function priceMult() { return pw('gadget', 1); }
+function priceMult() { return pw('gadget', 1) * worldMod('price', 1); }
 
 // Overall combat strength. Starts ~30, tops out ~150.
 function combatScore() {
@@ -166,7 +166,7 @@ function finishOrigin() {
 function addSuspicion(n) {
   const s = G.super;
   if (!s || s.exposed || n === 0) return;
-  if (n > 0) n = Math.round(n * COSTUMES[s.costume].mult * pw('stealth', 1));
+  if (n > 0) n = Math.round(n * COSTUMES[s.costume].mult * pw('stealth', 1) * worldMod('sus', 1));
   s.suspicion = clamp(s.suspicion + n);
   if (s.suspicion >= 100) exposeIdentity('The press connected the dots.');
 }
@@ -263,7 +263,7 @@ function fightNemesis(context) {
 function actTrain() {
   if (!spendEnergy()) return;
   const s = G.super;
-  const gain = Math.max(1, Math.round(rand(2, 6) * (s.level < 50 ? 1 : s.level < 80 ? 0.6 : 0.35)));
+  const gain = Math.max(1, Math.round(rand(2, 6) * (s.level < 50 ? 1 : s.level < 80 ? 0.6 : 0.35))) + (focusIs('power') ? 2 : 0);
   s.level = clamp(s.level + gain);
   s.control = clamp(s.control + rand(3, 8));
   fx({ health: rand(0, 3) });

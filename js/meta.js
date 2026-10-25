@@ -155,7 +155,7 @@ function showLegends() {
   const meta = loadMeta();
   const list = meta.legends || [];
   const ach = (meta.ach || []).length;
-  popup({ emoji: '🏛️', title: 'Hall of Legends', cls: 'wide',
+  popup({ emoji: '🏛️', title: 'Hall of Legends', cls: 'wide', always: true,
     text: `${meta.lives || 0} lives lived · ${ach}/${ACHIEVEMENTS.length} achievements earned<br><br>` + (list.length ? list.map(l =>
       `<div class="legend-row"><b>${esc(l.name)}</b>${l.alias ? ` · <span class="badge ${l.alignment}">${l.alignment === 'hero' ? '🦸' : '🦹'} ${esc(l.alias)}</span>` : ''}<br>
        <small>${l.ribbon} · Gen ${l.gen} · ${l.power ? POWERS[l.power].emoji + ' ' : ''}Died at ${l.age} (${esc(l.cause || '')}) · ${money(l.net)}</small></div>`).join('') : '<i>No legends yet. Live a life to be remembered.</i>'),
@@ -170,7 +170,8 @@ function continueAsChild(c) {
   const parentAlias = old.super && old.super.alias;
   const deceased = { first: old.first, last: old.last, gender: old.gender, role: 'Parent', age: old.age, alive: false, bond: c.bond, knows: true };
   G = {
-    v: 1, alive: true, first: c.first, last: c.last, gender: c.gender, city: old.city, age: c.age,
+    v: 1, alive: true, first: c.first, last: c.last, gender: c.gender, city: old.city, age: c.age, skin: c.skin != null ? c.skin : old.skin,
+    inbox: [], quests: {}, memories: [],
     stats: { happy: clamp(rand(40, 70)), health: rand(70, 100), smarts: rand(20, 90), looks: rand(20, 100) },
     money: inherit, debt: 0, assets: [], renting: false,
     edu: { level: c.age >= 18 ? 1 : 0, stage: c.age >= 5 && c.age < 18 ? (c.age < 11 ? 'Elementary School' : c.age < 14 ? 'Middle School' : 'High School') : '', years: 0, dropped: false },
@@ -233,6 +234,15 @@ function profilePanel() {
     G.social && G.social.followers ? h('div', {}, `📱 ${followersText(G.social.followers)} followers${G.social.verified ? ' ✔️' : ''}`) : null,
     G.record ? h('div', {}, `🚓 Criminal record: ${G.record} offense${G.record > 1 ? 's' : ''}`) : null,
     s && s.alias ? h('div', {}, `${s.alignment === 'hero' ? '🦸' : '🦹'} ${s.alias} · ${POWERS[s.power].name} · power ${s.level}`) : null));
+  const w = G.world && G.world.age === G.age ? WORLD_EVENTS.find(e => e.id === G.world.id) : null;
+  const f = FOCUSES.find(x => x.id === G.focus);
+  if (f || w) out.append(h('div', { class: 'info' },
+    f ? h('div', {}, `📖 This chapter is about `, h('b', {}, `${f.emoji} ${f.name}`), ` · ${f.desc.toLowerCase()}`) : null,
+    w ? h('div', {}, `${w.emoji} World this year: ${w.headline}`) : null));
+  if (activeQuests().length || questsDone()) out.append(section('Stories', questRows(),
+    QUESTS.filter(q => qState(q.id) && qState(q.id).done).map(q => h('div', { class: 'goal done' }, `✅ ${q.emoji} ${q.title}`, h('small', {}, ` finished at ${qState(q.id).finished}`)))));
+  out.append(section('Memories', (G.memories || []).slice(-6).reverse().map(m => h('div', { class: 'memory' }, h('b', {}, m.age), ' ', m.t)),
+    row('📖', 'Read your whole story', `${(G.memories || []).length} memories`, showMemoir)));
   out.append(section('Life Goals', (G.goals || []).map(g => {
     const def = GOALS.find(x => x.id === g.id);
     return h('div', { class: `goal ${g.done ? 'done' : ''}` }, g.done ? '✅' : '⬜', ' ', def.text, g.done ? h('small', {}, ` age ${g.age}`) : null);

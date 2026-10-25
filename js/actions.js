@@ -58,7 +58,7 @@ function actFindLove() {
   const c = randomPerson(null, Math.max(16, G.age - 6), G.age + 6, 'Partner');
   popup({ emoji: '💘', title: 'Dating', text: `You met <b>${fullName(c)}</b>, age ${c.age}.<br>Looks: ${c.looks}%`, choices: [
     { label: 'Ask them out', fn: () => {
-      if (chance(0.3 + G.stats.looks / 160 + (G.super && G.super.exposed && isHero() ? 0.2 : 0))) {
+      if (chance(0.3 + G.stats.looks / 160 + (G.super && G.super.exposed && isHero() ? 0.2 : 0) + (focusIs('love') ? 0.15 : 0))) {
         const p = addPerson({ ...c, bond: rand(55, 85) });
         fx({ happy: 10 });
         say(`💕 You started dating ${fullName(p)}.`, 'good');
@@ -171,9 +171,16 @@ function personActions(p) {
   const isPartner = p.role === 'Partner' || p.role === 'Spouse';
   popup({
     emoji: personEmoji(p), title: fullName(p),
-    text: `${label} · Age ${p.age}${p.trait ? ` · ${TRAIT_EMOJI[p.trait]} ${p.trait}` : ''}<br>Relationship: <b>${p.bond}%</b>${knowsLine}`,
+    text: `${label} · Age ${p.age}${p.superAlias ? ` · 🦸 secretly ${p.superAlias}` : ''}${p.trait ? ` · ${TRAIT_EMOJI[p.trait]} ${p.trait}` : ''}<br>Relationship: <b>${p.bond}%</b>${knowsLine}`,
     choices: [
       ...(p.role === 'Friend' || p.role === 'Best Friend' ? friendChoices(p) : []),
+      { label: `🦸 Team up as ${p.superAlias}`, show: () => p.superAlias && G.super && G.super.alignment && !G.super.retired, fn: () => {
+        if (!once('teamup' + p.id)) return;
+        p.bond = clamp(p.bond + 10); markActive();
+        fx(p.superSide === 'hero' ? { rep: rand(3, 6), happy: 8 } : { rep: rand(3, 6), heat: 6, happy: 8, money: rand(20, 80) * 1000 });
+        say(`💞 You and ${p.first} (${p.superAlias}) teamed up for a night out in costume.`, 'super');
+        toast(`${p.superAlias} has your back`);
+      } },
       { label: '⏰ Spend time together', fn: () => { if (!once(key('time'))) return; const b = rand(4, 12); p.bond = clamp(p.bond + b); fx({ happy: rand(2, 5) }); say(`You spent time with your ${label.toLowerCase()} ${p.first}.`); toast(`Relationship +${b}`); } },
       { label: '💬 Have a conversation', fn: () => { if (!once(key('talk'))) return; const b = rand(-2, 7); p.bond = clamp(p.bond + b); toast(b >= 0 ? `Relationship +${b}` : 'That got awkward…'); } },
       { label: '🌹 Compliment', fn: () => { if (!once(key('comp'))) return; p.bond = clamp(p.bond + rand(1, 5)); toast(`${p.first} smiled.`); } },
@@ -192,7 +199,7 @@ function personActions(p) {
       { label: '👶 Try for a baby', show: () => isPartner && G.age >= 18 && G.age <= 50 && p.age <= 50, fn: () => {
         if (!once('baby')) return;
         if (chance(0.5)) {
-          const kid = addPerson({ ...randomPerson(null, 0, 0, 'Child', G.last), bond: rand(70, 100) });
+          const kid = addPerson({ ...randomPerson(null, 0, 0, 'Child', G.last), bond: rand(70, 100), skin: pick([G.skin || '', p.skin || '']) });
           fx({ happy: 12 });
           say(`👶 You had a baby ${kid.gender === 'm' ? 'boy' : 'girl'} named ${kid.first}!`, 'good');
           result('👶', 'It’s a Baby!', `Welcome to the world, <b>${kid.first}</b>!`);
@@ -226,8 +233,9 @@ function revealTo(p) {
 function personEmoji(p) {
   if (!p.alive) return '🪦';
   const m = p.gender === 'm';
-  if (p.age < 4) return '👶';
-  if (p.age < 13) return m ? '👦' : '👧';
-  if (p.age < 60) return m ? '👨' : '👩';
-  return m ? '👴' : '👵';
+  const k = p.skin || '';
+  if (p.age < 4) return '👶' + k;
+  if (p.age < 13) return (m ? '👦' : '👧') + k;
+  if (p.age < 60) return (m ? '👨' : '👩') + k;
+  return (m ? '👴' : '👵') + k;
 }

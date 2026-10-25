@@ -180,7 +180,7 @@ const LIFE_EVENTS = [
     cond: () => living('Parent').length === 2 && living('Parent').some(p => p.gender === 'f' && p.age < 43) && (G.flags.newSibs || 0) < 2,
     fire() {
       G.flags.newSibs = (G.flags.newSibs || 0) + 1;
-      const s = addPerson({ ...randomPerson(null, 0, 0, 'Sibling', G.last), bond: rand(50, 90) });
+      const s = addPerson({ ...randomPerson(null, 0, 0, 'Sibling', G.last), bond: rand(50, 90), skin: G.skin });
       say(`👶 Your parents had a baby ${s.gender === 'm' ? 'boy' : 'girl'} named ${s.first}!`, 'good');
       fx({ happy: 4 });
     },
@@ -298,7 +298,7 @@ const SUPER_EVENTS = [
     },
   },
   {
-    id: 'kidnap', w: 2, cond: () => nemesisAvailable() && G.people.some(p => p.alive && (p.knows || G.super.exposed)) && G.age >= 16,
+    id: 'kidnap', w: 1, cond: () => nemesisAvailable() && G.people.some(p => p.alive && (p.knows || G.super.exposed)) && G.age >= 16,
     fire() {
       const n = G.super.nemesis;
       const victim = pick(G.people.filter(p => p.alive && (p.knows || G.super.exposed)));
@@ -306,7 +306,7 @@ const SUPER_EVENTS = [
       popup({ emoji: '🆘', title: 'Kidnapped!', text: `${n.name} has kidnapped your ${vl} <b>${victim.first}</b>! A note says: “Come alone to the old clock tower at midnight.”`, choices: [
         { label: 'Go alone and rescue them', fn: () => {
           duel(n.level + 40, { name: n.name, power: n.power }, `At the top of the clock tower, ${victim.first} is tied up and ${n.name} is waiting.`, () => { victim.bond = clamp(victim.bond + 20); fx({ rep: 10, happy: 10 }); n.losses++; say(`🦸 You rescued your ${vl} ${victim.first} from ${n.name}!`, 'good'); result('🦸', 'Rescued!', `You beat ${n.name} and carried ${victim.first} to safety.`); }, () => {
-            const dmg = injure(15, 35, `a fight with ${n.name}`);
+            const dmg = injure(10, 24, `a fight with ${n.name}`);
             if (chance(0.35)) { victim.alive = false; fx({ happy: -30 }); say(`💀 You failed to save your ${vl} ${victim.first}. ${n.name} killed them.`, 'bad'); result('💀', 'Too Late', `You weren’t strong enough. ${victim.first} is gone. (-${dmg} health)`); }
             else { fx({ happy: -10 }); say(`You lost to ${n.name}, but ${victim.first} escaped in the chaos. (-${dmg} health)`); result('😮‍💨', 'Barely', `You lost the fight, but ${victim.first} slipped away in the chaos. (-${dmg} health)`); }
           }, { canFlee: false });
